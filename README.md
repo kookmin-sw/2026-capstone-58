@@ -31,7 +31,7 @@ pnpm preview
 
 | 명령어              | 설명               |
 | ------------------- | ------------------ |
-| `pnpm dev`          | 개발 서버 실행     |
+| `pnpm run dev`      | 개발 서버 실행     |
 | `pnpm build`        | 프로덕션 빌드      |
 | `pnpm preview`      | 빌드 결과 미리보기 |
 | `pnpm lint`         | ESLint 검사        |
