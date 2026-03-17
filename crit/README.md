@@ -1,73 +1,61 @@
-# React + TypeScript + Vite
+# Crit Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite 기반 프론트엔드 프로젝트입니다.
 
-Currently, two official plugins are available:
+## 기술 스택
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19
+- TypeScript 5.9
+- Vite 8
+- Tailwind CSS 4
+- React Router 7
+- ESLint + Prettier
 
-## React Compiler
+## 시작하기
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# 패키지 설치
+pnpm install
 
-## Expanding the ESLint configuration
+# 개발 서버 실행
+pnpm dev
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# 빌드
+pnpm build
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 프리뷰
+pnpm preview
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 스크립트
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| 명령어              | 설명               |
+| ------------------- | ------------------ |
+| `pnpm dev`          | 개발 서버 실행     |
+| `pnpm build`        | 프로덕션 빌드      |
+| `pnpm preview`      | 빌드 결과 미리보기 |
+| `pnpm lint`         | ESLint 검사        |
+| `pnpm lint:fix`     | ESLint 자동 수정   |
+| `pnpm format`       | Prettier 포맷팅    |
+| `pnpm format:check` | Prettier 포맷 검사 |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 프로젝트 구조
+
+```
+src/
+├── assets/          # 정적 리소스
+├── pages/           # 페이지 컴포넌트
+│   └── main/
+├── routes/          # 라우팅 설정
+│   └── routes.tsx
+├── index.css        # 글로벌 스타일
+└── index.tsx        # 엔트리 포인트
+```
+
+## 경로 별칭
+
+`@/*` → `src/*` 경로 별칭이 설정되어 있습니다.
+
+```tsx
+import MainPage from '@/pages/main';
 ```
