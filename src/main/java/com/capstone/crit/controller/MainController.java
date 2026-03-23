@@ -2,6 +2,7 @@ package com.capstone.crit.controller;
 
 import com.capstone.crit.form.RecommendForm;
 import com.capstone.crit.service.AIService;
+import com.capstone.crit.service.BedrockService;
 import com.capstone.crit.service.YoutubeAPIService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,13 +19,18 @@ public class MainController {
 
     private AIService aiService;
     private YoutubeAPIService youtubeAPIService;
+    private BedrockService bedrockService;
 
     @PostMapping("/ai_recommend")
-    public RecommendForm main(@RequestParam String requestURL){
+    public String main(@RequestParam String requestURL, String keywords, String category){
 
-        RecommendForm data = youtubeAPIService.getData(requestURL);
+        RecommendForm data = youtubeAPIService.getData(requestURL); // 1 url 영상 정보 얻기
         log.info("data.title = {}", data.getTitle());
         log.info("data.body = {}", data.getDescription());
-        return data; //❗ 왜 void로 하면 안되지?
+
+        //2. 사용자 keyword, category, 유튜브 정보를 bedrock ai로 요청
+        String result = bedrockService.analyzeTrend(category, keywords);
+
+        return result; //❗ 왜 void로 하면 안되지?
     }
 }

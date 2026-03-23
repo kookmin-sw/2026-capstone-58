@@ -37,6 +37,7 @@ public class YoutubeAPIService {
             String description  = snippet.path("description").asText();
             return new RecommendForm(title, description);
         }
+
         catch(JsonProcessingException e){
             throw new RuntimeException("JSON 파싱 실패", e);
         }
