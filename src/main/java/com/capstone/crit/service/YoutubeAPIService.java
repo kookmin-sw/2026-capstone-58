@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
-public class YoutubeAPIService {
+public class YoutubeAPIService { // test 용 수정
 
     private static final String API_KEY = "AIzaSyAZmCz7C9UMAs9zYVq28EdiVIxxY9-7Shk";
 
