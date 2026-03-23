@@ -22,7 +22,7 @@ public class YoutubeAPIService {
         String apiURL = "https://www.googleapis.com/youtube/v3/videos"
                 + "?part=snippet"
                 + "&id=" + videoId
-                + "&key=" + API_KEY;
+                + "&key=" + API_KEY; //
 
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<String> response = restTemplate.getForEntity(apiURL, String.class);
