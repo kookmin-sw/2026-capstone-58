@@ -1,5 +1,6 @@
 package com.capstone.crit.service;
 
+import com.capstone.crit.form.RecommendForm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -29,14 +30,16 @@ public class BedrockService {
                 .build();
     }
 
-    public String analyzeTrend(String category, String keywords) {
-        String prompt = buildTrendPrompt(category, keywords);
+    public String analyzeTrend(RecommendForm recommendForm, String category, String keywords) {
+        String prompt = buildTrendPrompt(recommendForm, category, keywords);
         return invokeModel(prompt);
     }
 
-    private String buildTrendPrompt(String category, String keywords) {
+    private String buildTrendPrompt(RecommendForm recommendForm, String category, String keywords) {
         return String.format(
             "당신은 YouTube 콘텐츠 전략 전문가입니다.\n" +
+                    "영상 제목: %s\n"+
+                    "영상 설명: %s\n"+
             "카테고리: %s\n" +
             "키워드: %s\n\n" +
             "위 정보를 바탕으로 다음을 제공해주세요:\n" +
@@ -44,6 +47,7 @@ public class BedrockService {
             "2. 추천 콘텐츠 주제 (5가지, 제목 포함)\n" +
             "3. 각 주제의 예상 타겟 시청자\n" +
             "한국어로 답변해주세요.",
+            recommendForm.getTitle(), recommendForm.getDescription(),
             category, keywords != null ? keywords : "없음"
         );
     }

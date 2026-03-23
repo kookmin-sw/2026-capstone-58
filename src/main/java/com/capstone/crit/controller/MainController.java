@@ -29,7 +29,7 @@ public class MainController {
         log.info("data.body = {}", data.getDescription());
 
         //2. 사용자 keyword, category, 유튜브 정보를 bedrock ai로 요청
-        String result = bedrockService.analyzeTrend(category, keywords);
+        String result = bedrockService.analyzeTrend(data, category, keywords);
 
         return result; //❗ 왜 void로 하면 안되지?
     }
