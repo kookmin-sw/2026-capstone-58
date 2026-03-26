@@ -76,4 +76,22 @@
     line-height: 20px;
     letter-spacing: 0;
   }
+
+  /* Typography - Body */
+  .typo-label {
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 23px;
+    letter-spacing: 0;
+  }
+
+  /* Typography - h1 */
+  .typo-h1 {
+    font-size: 30px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 20px;
+    letter-spacing: 0;
+  }
 }
