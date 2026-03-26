@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import FormContainer from '@/components/formContainer.tsx';
 import CheckBox from '@/components/checkBox.tsx';
 
@@ -26,6 +26,14 @@ interface FormListProps {
 const FormList = ({ onSearch }: FormListProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const [searched, setSearched] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      setContentHeight(contentRef.current.scrollHeight);
+    }
+  }, []);
 
   const handleSearch = () => {
     setCollapsed(true);
@@ -35,7 +43,11 @@ const FormList = ({ onSearch }: FormListProps) => {
 
   return (
     <div className="flex w-250 pt-18 pb-12 px-8 flex-col justify-end items-center gap-10 rounded-xl bg-[#F7F6FB]">
-      {!collapsed && (
+      <div
+        ref={contentRef}
+        className="overflow-hidden transition-all duration-500 ease-in-out"
+        style={{ maxHeight: collapsed ? 0 : contentHeight, opacity: collapsed ? 0 : 1 }}
+      >
         <div className="flex w-234 py-9 px-8 flex-col justify-center items-center gap-6 rounded-xl border border-black/10 bg-white">
           <div className="flex pb-14 pl-6 pr-4 flex-col items-start gap-12">
             <div className="flex w-196 h-21 justify-center items-start gap-6">
@@ -54,7 +66,7 @@ const FormList = ({ onSearch }: FormListProps) => {
             </div>
           </div>
         </div>
-      )}
+      </div>
       <div className="flex w-full items-center relative">
         <div
           onClick={handleSearch}
@@ -67,26 +79,19 @@ const FormList = ({ onSearch }: FormListProps) => {
             onClick={() => setCollapsed(!collapsed)}
             className="absolute right-0 flex items-center gap-1 cursor-pointer text-[#0a0a0a89] active:text-[#6B4EFF] typo-label"
           >
-            <svg className="w-4 h-4 fill-current" viewBox="0 0 16 16">
-              {collapsed ? (
-                <path
-                  d="M4 6l4 4 4-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              ) : (
-                <path
-                  d="M4 10l4-4 4 4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              )}
+            <svg
+              className="w-4 h-4 transition-transform duration-300"
+              style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}
+              viewBox="0 0 16 16"
+            >
+              <path
+                d="M4 6l4 4 4-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
             {collapsed ? '펼치기' : '접기'}
           </div>
