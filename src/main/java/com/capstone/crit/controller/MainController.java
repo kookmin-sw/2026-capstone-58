@@ -3,6 +3,7 @@ package com.capstone.crit.controller;
 import com.capstone.crit.form.RecommendForm;
 import com.capstone.crit.service.AIService;
 import com.capstone.crit.service.BedrockService;
+import com.capstone.crit.service.GeminiService;
 import com.capstone.crit.service.YoutubeAPIService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ public class MainController {
     private AIService aiService;
     private YoutubeAPIService youtubeAPIService;
     private BedrockService bedrockService;
+    private GeminiService geminiService;
 
     @PostMapping("/ai_recommend")
     public String main(@RequestParam String requestURL, String keywords, String category){
@@ -29,7 +31,7 @@ public class MainController {
         log.info("data.body = {}", data.getDescription());
 
         //2. 사용자 keyword, category, 유튜브 정보를 bedrock ai로 요청
-        String result = bedrockService.analyzeTrend(data, category, keywords);
+        String result = geminiService.analyzeVideo(requestURL, category, keywords); //이걸 제미나이 서비스로 바꿔보자
 
         return result; //❗ 왜 void로 하면 안되지?
     }
