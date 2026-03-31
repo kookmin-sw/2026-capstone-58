@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import FormContainer from '@/components/formContainer.tsx';
-import CheckBox from '@/components/checkBox.tsx';
+import FormContainer from '@/components/formContainer';
+import CheckBox from '@/components/checkBox';
+
+import TimeSlider from '@/components/timeSlider';
 
 const categories = [
   'Games',
@@ -55,14 +57,16 @@ const FormList = ({ onSearch }: FormListProps) => {
               <FormContainer title="YouTube URL" placeholder="예) https://youtube.com/@channel" />
             </div>
             <div className="flex w-196 flex-col items-start gap-4">
-              <div className="flex w-196 flex-col items-start gap-4">
-                <div className="typo-title text-[#0A0A0A]">Category</div>
-                <div className="h-78 self-stretch grid grid-cols-3 gap-4 content-start">
-                  {categories.map(category => (
-                    <CheckBox key={category} label={category} />
-                  ))}
-                </div>
+              <div className="typo-title text-[#0A0A0A]">Category</div>
+              <div className="h-78 self-stretch grid grid-cols-3 gap-4 content-start">
+                {categories.map(category => (
+                  <CheckBox key={category} label={category} />
+                ))}
               </div>
+            </div>
+            <div className="flex w-196 flex-col items-start gap-4">
+              <div className="typo-title text-[#0A0A0A]">Time</div>
+              <TimeSlider />
             </div>
           </div>
         </div>
