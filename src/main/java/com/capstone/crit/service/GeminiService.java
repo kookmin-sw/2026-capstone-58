@@ -31,36 +31,43 @@ public class GeminiService {
 
             // ✅ 1. 프롬프트 수정: 데이터 기반 분석 및 JSON 출력 지시
             String prompt = String.format("""
-                            당신은 유튜브 기획자입니다.\s
-                                        원본 영상의 데이터를 분석하되, 내용에 얽매이지 말고 '완전히 새로운' 기획안 3개를 작성하세요.
-                            
-                                        [원본 데이터 참고용]
-                                        - 제목: %s
-                                        - 태그: %s
-                                        - 카테고리: %s / 사용자 요청: %s
-                                        - 키워드: %s
-                            
-                                        [기획 지시 사항]
-                                        1. 창의성 우선: 원본 데이터의 내용 써도 되고 관련 된 다른 키워드로 작성 해도 됩니다.
-                                        2. 무조건 원본 데이터와 연관된 다른 키워드로 확장하거나 더 깊은 내요을 다루거나 합니다.
-                                        3. 형식: 반드시 아래의 JSON 배열 형식으로만 답변하세요. (Markdown 기호 제외)
-                            
-                                        [
-                                          {
-                                            "suggestedTitle": "예측 불가능하고 자극적인 새 영상 제목",
-                                            "conceptSummary": "기존의 틀을 깨는 창의적인 기획 의도 한 줄"
-                                          },
-                                          {
-                                            "suggestedTitle": "두 번째 파격적인 추천 제목",
-                                            "conceptSummary": "두 번째 기획 의도 한 줄"
-                                          },
-                                          {
-                                            "suggestedTitle": "세 번째 혁신적인 추천 제목",
-                                            "conceptSummary": "세 번째 기획 의도 한 줄"
-                                          }
-                                        ]
-                """,
+        당신은 유튜브 콘텐츠 기획자입니다.
+        아래 채널 정보를 참고하여 이 유튜버가 다음에 올릴 만한 영상 주제 3개를 추천하세요.
+
+        [채널 참고 정보 - 방향성 파악용]
+        - 채널명: %s
+        - 채널 설명: %s
+        - 최근 영상 제목들: %s
+        - 자주 사용한 태그: %s
+        - 주요 카테고리: %s
+
+        [사용자 요청 조건 - 반드시 반영]
+        - 카테고리: %s
+        - 키워드: %s
+
+        [기획 지시 사항]
+        1. 채널 정보는 이 유튜버의 스타일과 방향성을 파악하는 참고용입니다. 내용에 종속될 필요 없습니다.
+        2. 사용자가 요청한 카테고리와 키워드는 반드시 주제에 반영하세요.
+        3. 결과는 반드시 아래 JSON 배열 형식으로만 답변하세요. (Markdown 기호 제외)
+
+        [
+          {
+            "suggestedTitle": "다음 영상 후보 제목 1",
+            "conceptSummary": "기획 의도 한 줄"
+          },
+          {
+            "suggestedTitle": "다음 영상 후보 제목 2",
+            "conceptSummary": "기획 의도 한 줄"
+          },
+          {
+            "suggestedTitle": "다음 영상 후보 제목 3",
+            "conceptSummary": "기획 의도 한 줄"
+          }
+        ]
+        """,
                     recommendForm.getTitle(),
+                    recommendForm.getDescription(),
+                    recommendForm.getRecentTitles(),
                     recommendForm.getTags(),
                     recommendForm.getTopicCategories(),
                     category,
@@ -90,7 +97,7 @@ public class GeminiService {
         }
     }
 
-    public List<Map<String, Object>> writeScript(String youtubeUrl, String title,String concept,String category, String keywords) {
+    public List<Map<String, Object>> writeScript(String youtubeUrl, RecommendForm recommendForm, String title,String concept,String category, String keywords, int time) {
         try {
             // 1. URL 정규화 (추가 파라미터 제거)
             String cleanUrl = normalizeYoutubeUrl(youtubeUrl);
@@ -101,44 +108,70 @@ public class GeminiService {
                     apikey
             );
 
-            // 2. 프롬프트 준비
+
+            String duration = time + "분";
+
+            // 🔥 프롬프트 수정: time 반영, 채널 최신 영상 분석 기준으로 변경
             String prompt = String.format("""
-                    String youtubeUrl, String title, String concept, String category, String keywords
-                    
-                         당신은 유튜브 콘텐츠 기획 전문가입니다.
-                         youtubeUrl을 기반으로 영상의 핵심 흐름과 패턴을 분석하되, 기존 내용에 얽매이지 말고 확장된 새로운 기획을 제안하세요.
-                    
-                         [원본 데이터 참고용]
-                         - URL: %s
-                         - 제목: %s
-                         - 컨셉: %s
-                         - 카테고리: %s
-                         - 키워드: %s
-                    
-                         [기획 지시 사항]
-                         1. URL 영상의 구조(주제, 흐름, 포인트)를 참고하되 완전히 새로운 방향으로 재해석하세요.
-                         2. 기존 키워드를 확장하거나 트렌디한 요소를 추가하세요.
-                         3. 결과 기획안은 **약 5분 분량의 영상 구성**을 기준으로 작성하세요. (초반 훅 → 전개 → 클라이맥스 → 마무리 흐름 포함)
-                         4. 작성한 기획안과 관련된 새로운 제목을 생성하세요.
-                         5. 결과는 반드시 아래 JSON 형식으로만 출력하세요. (Markdown 금지)
-                    
-                         [
-                           {
-                             "conceptSummary": "5분 영상 기준으로 구성된 새로운 기획안",
-                             "suggestedTitles": [
-                               "자극적인 제목 1",
-                               "자극적인 제목 2",
-                               "자극적인 제목 3",
-                               "자극적인 제목 4",
-                               "자극적인 제목 5"
-                             ]
-                           }
-                         ]
-            """, cleanUrl,
-                    title,
-                    concept,
-                    category,
-                    keywords);
+        당신은 유튜브 콘텐츠 기획 전문가입니다.
+        아래 유튜브 영상을 직접 시청하고, 발화자의 말투·톤·특성을 파악한 뒤
+        그 스타일을 살려 완전히 새로운 기획안을 작성하세요.
+
+        [채널 정보 - 스타일 파악용]
+        - 채널명: %s
+        - 채널 설명: %s
+        - 최근 영상 제목들: %s
+        - 자주 사용한 태그: %s
+        - 주요 카테고리: %s
+
+        [채널 최신 영상 - 직접 분석 대상]
+        - URL: %s
+        - 선택된 기획 제목: %s
+        - 컨셉: %s
+        - 사용자 요청 카테고리: %s
+        - 키워드: %s
+        - 목표 영상 길이: %s
+
+        [기획 지시 사항]
+        1. 위 영상을 직접 시청하여 발화자의 말투, 톤, 편집 스타일, 콘텐츠 흐름을 파악하세요.
+        2. 채널 정보(태그, 최근 제목들)로 채널 특성을 파악하고 기획안에 반영하세요.
+        3. 파악한 발화자 특성을 기획안 전체에 반영하세요. (말투, 구성 방식 등)
+        4. 기획안은 %s 분량 기준으로 작성하세요. (훅 → 전개 → 클라이맥스 → 마무리)
+        5. 기존 키워드/카테고리에서 확장하거나 트렌디한 요소를 추가하세요.
+        6. 기획안에 맞는 제목 5개를 생성하세요.
+        7. 반드시 아래 JSON 형식으로만 출력하세요. (Markdown 기호 절대 금지)
+
+        [
+          {
+            "conceptSummary": "위 조건을 반영한 새로운 기획안 (발화자 말투 포함)",
+            "suggestedTitles": [
+              "제목 1",
+              "제목 2",
+              "제목 3",
+              "제목 4",
+              "제목 5"
+            ]
+          }
+        ]
+        """,
+                    // 🔥 채널 정보 (recommendForm)
+                    recommendForm.getTitle(),           // 1 채널명
+                    recommendForm.getDescription(),     // 2 채널 설명
+                    recommendForm.getRecentTitles(),    // 3 최근 영상 제목들
+                    recommendForm.getTags(),            // 4 태그
+                    recommendForm.getTopicCategories(), // 5 토픽 카테고리
+
+                    // 영상 + 사용자 요청 정보
+                    cleanUrl,                           // 6 영상 URL
+                    title,                              // 7 선택된 기획 제목
+                    concept,                            // 8 컨셉
+                    category,                           // 9 사용자 요청 카테고리
+                    keywords,                           // 10 키워드
+                    duration,                           // 11 목표 영상 길이
+                    duration                            // 12 기획 지시 사항 4번
+            );
+
+
 
             // 3. JSON 구성 (유효성 검사 통과를 위해 정규화된 cleanUrl 사용)
             Map<String, Object> videoPart = Map.of(
@@ -166,7 +199,11 @@ public class GeminiService {
 
             // ✨ 4. JSON 문자열을 List<Map>으로 변환하여 리턴 (Jackson 이용)
             ObjectMapper mapper = new ObjectMapper();
+
             String cleanJson = rawJson.trim().replaceAll("^```[a-zA-Z]*\\n?", "").replaceAll("```$", "").trim();
+            if (cleanJson.startsWith("{")) {
+                cleanJson = "[" + cleanJson + "]";
+            }
             return mapper.readValue(cleanJson, new TypeReference<List<Map<String, Object>>>() {});
 
         } catch (Exception e) {
