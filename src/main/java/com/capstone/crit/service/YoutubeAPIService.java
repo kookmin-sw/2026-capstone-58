@@ -8,6 +8,9 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 public class YoutubeAPIService { // test 용 수정
 
@@ -20,7 +23,7 @@ public class YoutubeAPIService { // test 용 수정
         String videoId = extractVideoId(url);
 
         String apiURL = "https://www.googleapis.com/youtube/v3/videos"
-                + "?part=snippet"
+                + "?part=snippet, topicDetails"
                 + "&id=" + videoId
                 + "&key=" + API_KEY; //
 
@@ -31,11 +34,29 @@ public class YoutubeAPIService { // test 용 수정
         ObjectMapper objectMapper = new ObjectMapper();
         try{
             JsonNode root = objectMapper.readTree(response.getBody());
-            JsonNode snippet = root.path("items").get(0).path("snippet");
+
+
+            JsonNode item = root.path("items").get(0);
+            JsonNode topicDetails = item.path("topicDetails");
+            JsonNode snippet = item.path("snippet");
 
             String title = snippet.path("title").asText();
             String description  = snippet.path("description").asText();
-            return new RecommendForm(title, description);
+
+// ✨ [추가] Tags 리스트 파싱 로직
+            List<String> tags = new ArrayList<>();
+            if (snippet.has("tags")) {
+                snippet.path("tags").forEach(tag -> tags.add(tag.asText()));
+            }
+
+            // ✨ [추가] TopicCategories 리스트 파싱 로직
+            List<String> topicCategories = new ArrayList<>();
+            if (topicDetails.has("topicCategories")) {
+                topicDetails.path("topicCategories").forEach(topic -> topicCategories.add(topic.asText()));
+            }
+
+            // ✅ 수정된 RecommendForm 생성자(필드 4개)에 맞춰 반환
+            return new RecommendForm(title, description, tags, topicCategories);
         }
 
         catch(JsonProcessingException e){
