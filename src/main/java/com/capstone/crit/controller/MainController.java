@@ -4,6 +4,8 @@ import com.capstone.crit.form.RecommendForm;
 import com.capstone.crit.service.AIService;
 import com.capstone.crit.service.BedrockService;
 import com.capstone.crit.service.GeminiService;
+import com.capstone.crit.service.ImagenService;
+import com.capstone.crit.service.S3Service;
 import com.capstone.crit.service.YoutubeAPIService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +28,8 @@ public class MainController {
     private YoutubeAPIService youtubeAPIService;
     private BedrockService bedrockService;
     private GeminiService geminiService;
+    private ImagenService imagenService;
+    private S3Service s3Service;
 
     @Operation(summary = "유튜브 기반 주제 추천", description = "유튜브 URL을 기반으로 AI가 새로운 콘텐츠 주제를 추천합니다.")
     @PostMapping("/ai_recommend")
@@ -76,8 +80,25 @@ public class MainController {
         String categoryStr = String.join(", ", category);
 
         // 기존 writeScript 그대로 호출 (멀티모달 유지)
-        List<Map<String, Object>> result = geminiService.writeScript(latestVideoUrl, recommendForm, title, concept, categoryStr, keywords, time); //이걸 제미나이 서비스로 바꿔보자
+        List<Map<String, Object>> result = geminiService.writeScript(latestVideoUrl, recommendForm, title, concept, categoryStr, keywords, time);
 
-        return ResponseEntity.ok(result); //❗ 왜 void로 하면 안되지?
+        // 썸네일 생성
+        String thumbnailImage = null;
+        try {
+            List<byte[]> thumbnailImages = youtubeAPIService.getRecentThumbnailImages(requestURL);
+            String imagenPrompt = bedrockService.analyzeThumbnailsAndGeneratePrompt(thumbnailImages, title, concept);
+            String base64 = imagenService.generateThumbnail(imagenPrompt);
+            thumbnailImage = s3Service.uploadBase64Image(base64, "thumbnails");
+        } catch (Exception e) {
+            log.error("썸네일 생성 실패: {}", e.getMessage());
+        }
+
+        if (thumbnailImage != null) {
+            for (Map<String, Object> item : result) {
+                item.put("thumbnailImage", thumbnailImage);
+            }
+        }
+
+        return ResponseEntity.ok(result);
     }
 }

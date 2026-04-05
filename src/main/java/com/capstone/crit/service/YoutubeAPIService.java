@@ -121,6 +121,34 @@ public class YoutubeAPIService {
         }
     }
 
+    // 채널 최신 썸네일 이미지 3개 다운로드
+    public List<byte[]> getRecentThumbnailImages(String channelUrl) throws Exception {
+        String channelId = resolveChannelId(channelUrl, new RestTemplate(), new com.fasterxml.jackson.databind.ObjectMapper());
+        String searchUrl = "https://www.googleapis.com/youtube/v3/search"
+                + "?channelId=" + channelId
+                + "&part=snippet"
+                + "&order=date"
+                + "&maxResults=3"
+                + "&type=video"
+                + "&key=" + API_KEY;
+
+        RestTemplate restTemplate = new RestTemplate();
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        ResponseEntity<String> response = restTemplate.getForEntity(searchUrl, String.class);
+        JsonNode items = mapper.readTree(response.getBody()).path("items");
+
+        List<byte[]> images = new ArrayList<>();
+        for (JsonNode item : items) {
+            JsonNode thumbs = item.path("snippet").path("thumbnails");
+            String url = thumbs.has("high") ? thumbs.path("high").path("url").asText()
+                       : thumbs.path("medium").path("url").asText();
+            try {
+                images.add(restTemplate.getForObject(url, byte[].class));
+            } catch (Exception ignored) {}
+        }
+        return images;
+    }
+
     // 🔥 기존 extractVideoId 대신 채널 ID를 추출하는 메서드로 교체
     private String resolveChannelId(String channelUrl, RestTemplate restTemplate, ObjectMapper mapper) {
         try {

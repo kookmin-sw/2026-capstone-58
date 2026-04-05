@@ -38,13 +38,22 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-	// AWS Bedrock
+	// AWS Bedrock + S3
 	implementation platform('software.amazon.awssdk:bom:2.25.0')
 	implementation 'software.amazon.awssdk:bedrockruntime'
+	implementation 'software.amazon.awssdk:s3'
 	implementation 'software.amazon.awssdk:sts'
+
+	// Webflux (for Imagen)
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
 	// JSON
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+	// GCP JWT (for Imagen)
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 }
 
 tasks.named('test') {

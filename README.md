@@ -10,7 +10,10 @@ Google Gemini API와 YouTube Data API v3를 연동하여 채널 스타일을 분
 - **Java 17**
 - **Spring Boot 4.0.3**
 - **Google Gemini API** (gemini-2.0-flash-lite-preview) — 주제 추천 및 기획안 생성
+- **Google Imagen 4** — AI 썸네일 이미지 생성
 - **YouTube Data API v3** — 채널 정보 및 최신 영상 수집
+- **AWS Bedrock (Claude Sonnet 4 Vision)** — 채널 썸네일 스타일 분석
+- **AWS S3** — 생성된 썸네일 이미지 저장
 - **SpringDoc OpenAPI (Swagger UI)**
 - **Lombok**
 - **Gradle**
@@ -24,6 +27,9 @@ Google Gemini API와 YouTube Data API v3를 연동하여 채널 스타일을 분
 - Java 17+
 - Google Gemini API 키
 - YouTube Data API v3 키
+- AWS 계정 및 Bedrock 접근 권한 (EC2 IAM Role 또는 AWS CLI 설정)
+- AWS S3 버킷
+- GCP 서비스 계정 키 (Imagen 사용)
 
 ### 환경 설정
 
@@ -31,6 +37,10 @@ Google Gemini API와 YouTube Data API v3를 연동하여 채널 스타일을 분
 
 ```properties
 gemini.api.key=YOUR_GEMINI_API_KEY
+aws.region=us-east-1
+aws.bedrock.model-id=anthropic.claude-3-haiku-20240307-v1:0
+aws.s3.bucket=YOUR_S3_BUCKET_NAME
+gcp.key-path=/path/to/gcp-key.json
 ```
 
 > ⚠️ YouTube API Key는 현재 `YoutubeAPIService.java`에 하드코딩되어 있습니다. 추후 환경 변수로 분리가 필요합니다.
@@ -145,18 +155,20 @@ Content-Type: application/json
 |------|------|------|
 | `conceptSummary` | String | 발화자 말투를 반영한 상세 기획안 (훅 → 전개 → 클라이맥스 → 마무리) |
 | `suggestedTitles` | List\<String\> | AI 추천 제목 5개 |
+| `thumbnailImage` | String | AI 생성 썸네일 S3 URL (실패 시 필드 없음) |
 
 ```json
 [
   {
-    "conceptSummary": "오프닝: '여러분 혹시 영상 올렸는데 조회수가 안 나온 적 있으시죠?' 로 공감 훅 시작. 본론에서 알고리즘이 선호하는 영상 구조 3가지(초반 30초 집중, 중간 참여 유도, 마무리 CTA)를 실제 사례 비교로 설명. 마무리는 구독자에게 '댓글로 여러분 채널 고민 남겨주세요' 로 참여 유도.",
+    "conceptSummary": "오프닝: '여러분 혹시 영상 올렸는데 조회수가 안 나온 적 있으시죠?' 로 공감 훅 시작...",
     "suggestedTitles": [
       "유튜브 알고리즘이 좋아하는 영상 구조 3가지 (이것만 알면 조회수 달라짐)",
       "조회수 안 나오는 영상의 공통점 | 구조가 문제입니다",
       "유튜브 잘 되는 영상 vs 안 되는 영상 차이점 분석",
       "알고리즘 탈 수 있는 영상 만드는 법 (실전 비교)",
       "영상 구조만 바꿔도 조회수 2배 | 유튜브 성장 공식"
-    ]
+    ],
+    "thumbnailImage": "https://pj-kmucd1-08-s3-thumbnails.s3.amazonaws.com/thumbnails/xxxx.png"
   }
 ]
 ```
@@ -187,6 +199,11 @@ Content-Type: application/json
 3. RecommendForm + latestVideoUrl + ... → GeminiService.writeScript()
    ├── Gemini 멀티모달 API로 영상 직접 시청 분석
    └── 발화자 말투 파악 → 기획안 + 제목 5개 생성
+4. 썸네일 생성 (실패해도 나머지 응답은 정상 반환)
+   ├── YoutubeAPIService.getRecentThumbnailImages() → 최신 썸네일 3개 다운로드
+   ├── BedrockService.analyzeThumbnailsAndGeneratePrompt() → Claude Vision으로 스타일 분석 + Imagen 프롬프트 생성
+   ├── ImagenService.generateThumbnail() → Imagen 4로 16:9 썸네일 이미지 생성
+   └── S3Service.uploadBase64Image() → S3 업로드 후 URL 반환 → 응답에 thumbnailImage 추가
 ```
 
 ---
@@ -213,13 +230,14 @@ src/main/java/com/capstone/crit/
 ├── service/
 │   ├── GeminiService.java             # Google Gemini API 연동
 │   ├── YoutubeAPIService.java         # YouTube Data API 연동
-│   ├── BedrockService.java            # AWS Bedrock 연동 (미사용)
+│   ├── BedrockService.java            # AWS Bedrock Claude Vision — 썸네일 스타일 분석
+│   ├── ImagenService.java             # Google Imagen 4 — 썸네일 이미지 생성
+│   ├── S3Service.java                 # AWS S3 — 썸네일 이미지 업로드
 │   └── AIService.java                 # AI 서비스 인터페이스
 ├── form/
 │   └── RecommendForm.java             # 채널 정보 객체
 ├── dto/
-│   ├── AIRecommendRequestDto.java     # 주제 추천 요청 DTO
-│   └── AIScriptRequestDto.java        # 기획 생성 요청 DTO
+│   └── TrendRequest.java
 └── SwaggerConfig.java                 # Swagger 설정
 ```
 
@@ -240,3 +258,16 @@ src/main/java/com/capstone/crit/
 - `/ai_script` 호출 시 `youtubeAPIService.getData()`가 중복 호출됨 → Redis 캐싱으로 개선 예정
 - YouTube API Key가 소스코드에 하드코딩되어 있음 → 환경 변수 분리 필요
 - Gemini 모델 ID `gemini-3.1-flash-lite-preview` → 최신 모델로 업데이트 필요
+
+---
+
+## 변경 이력
+
+### 2026-04-05
+- **썸네일 자동 생성 기능 추가** (`POST /ai_script` 응답에 `thumbnailImage` 추가)
+  - `YoutubeAPIService.getRecentThumbnailImages()` 추가: 채널 최신 썸네일 3개 수집
+  - `BedrockService.analyzeThumbnailsAndGeneratePrompt()` 추가: Claude Sonnet 4 Vision으로 썸네일 스타일 분석 및 Imagen 프롬프트 생성
+  - `ImagenService` 추가: GCP 서비스 계정 JWT 인증 후 Imagen 4로 16:9 썸네일 이미지 생성
+  - `S3Service` 추가: 생성된 이미지를 S3에 업로드 후 URL 반환
+  - `build.gradle`에 S3, WebFlux, JJWT 의존성 추가
+  - `application.properties`에 `aws.s3.bucket`, `gcp.key-path` 설정 추가
