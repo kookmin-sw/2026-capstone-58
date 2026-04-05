@@ -150,7 +150,8 @@ public class GeminiService {
               "제목 3",
               "제목 4",
               "제목 5"
-            ]
+            ],
+            "thumbnailGuide": "썸네일 구성 가이드 (색상, 레이아웃, 분위기 등)"
           }
         ]
         """,

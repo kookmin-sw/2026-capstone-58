@@ -93,9 +93,18 @@ public class MainController {
             log.error("썸네일 생성 실패: {}", e.getMessage());
         }
 
-        if (thumbnailImage != null) {
+        // 응답 구조 변경: thumbnail 객체로 묶기
+        if (thumbnailImage != null || !result.isEmpty()) {
             for (Map<String, Object> item : result) {
-                item.put("thumbnailImage", thumbnailImage);
+                Map<String, Object> thumbnail = new java.util.HashMap<>();
+                if (thumbnailImage != null) {
+                    thumbnail.put("thumbnailImage", thumbnailImage);
+                }
+                Object guide = item.remove("thumbnailGuide");
+                if (guide != null) {
+                    thumbnail.put("thumbnailGuide", guide);
+                }
+                item.put("thumbnail", thumbnail);
             }
         }
 
