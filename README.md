@@ -155,7 +155,9 @@ Content-Type: application/json
 |------|------|------|
 | `conceptSummary` | String | 발화자 말투를 반영한 상세 기획안 (훅 → 전개 → 클라이맥스 → 마무리) |
 | `suggestedTitles` | List\<String\> | AI 추천 제목 5개 |
-| `thumbnailImage` | String | AI 생성 썸네일 S3 URL (실패 시 필드 없음) |
+| `thumbnail` | Object | 썸네일 정보 객체 (생성 실패 시 빈 객체) |
+| `thumbnail.thumbnailImage` | String | AI 생성 썸네일 S3 URL |
+| `thumbnail.thumbnailGuide` | String | 썸네일 구성 가이드 텍스트 |
 
 ```json
 [
@@ -168,7 +170,10 @@ Content-Type: application/json
       "알고리즘 탈 수 있는 영상 만드는 법 (실전 비교)",
       "영상 구조만 바꿔도 조회수 2배 | 유튜브 성장 공식"
     ],
-    "thumbnailImage": "https://pj-kmucd1-08-s3-thumbnails.s3.amazonaws.com/thumbnails/xxxx.png"
+    "thumbnail": {
+      "thumbnailImage": "https://pj-kmucd1-08-s3-thumbnails.s3.amazonaws.com/thumbnails/xxxx.png",
+      "thumbnailGuide": "배경은 깔끔한 화이트/그레이 톤..."
+    }
   }
 ]
 ```
