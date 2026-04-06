@@ -93,7 +93,13 @@ public class MainController {
             log.error("썸네일 생성 실패: {}", e.getMessage());
         }
 
-        // 응답 구조 변경: thumbnail 객체로 묶기
+        // 유사한 영상 3개 검색
+        List<Map<String, String>> similarVideos = youtubeAPIService.getSimilarVideos(concept, keywords);
+        
+        // 유사한 유튜버 2명 검색
+        List<Map<String, String>> similarCreators = youtubeAPIService.getSimilarCreators(keywords, categoryStr);
+
+        // 응답 구조 변경: thumbnail 객체로 묶기 + 유사 영상/유튜버 추가
         if (thumbnailImage != null || !result.isEmpty()) {
             for (Map<String, Object> item : result) {
                 Map<String, Object> thumbnail = new java.util.HashMap<>();
@@ -105,6 +111,10 @@ public class MainController {
                     thumbnail.put("thumbnailGuide", guide);
                 }
                 item.put("thumbnail", thumbnail);
+                
+                // 유사 영상 및 유튜버 추가
+                item.put("similarVideos", similarVideos);
+                item.put("similarCreators", similarCreators);
             }
         }
 

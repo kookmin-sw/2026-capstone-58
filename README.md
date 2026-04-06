@@ -119,6 +119,7 @@ Content-Type: application/json
 ### 2. 영상 기획 및 제목 생성
 
 채널 최신 영상을 직접 분석하여 발화자 말투와 스타일을 반영한 기획안과 추천 제목을 생성합니다.
+또한 기획안과 유사한 영상 3개와 유사한 유튜버 2명을 자동으로 검색하여 제공합니다.
 
 ```
 POST /ai_script
@@ -149,15 +150,21 @@ Content-Type: application/json
 
 #### Response
 
-`List<Map<String, Object>>` — 기획안 및 추천 제목
+`List<Map<String, Object>>` — 기획안, 추천 제목, 썸네일, 유사 영상/유튜버
 
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | `conceptSummary` | String | 발화자 말투를 반영한 상세 기획안 (훅 → 전개 → 클라이맥스 → 마무리) |
 | `suggestedTitles` | List\<String\> | AI 추천 제목 5개 |
-| `thumbnail` | Object | 썸네일 정보 객체 (생성 실패 시 빈 객체) |
-| `thumbnail.thumbnailImage` | String | AI 생성 썸네일 S3 URL |
-| `thumbnail.thumbnailGuide` | String | 썸네일 구성 가이드 텍스트 |
+| `thumbnail` | Object | 썸네일 정보 객체 |
+| `thumbnail.thumbnailImage` | String | AI 생성 썸네일 S3 URL (생성 실패 시 필드 없음) |
+| `thumbnail.thumbnailGuide` | String | 썸네일 구성 가이드 (색상, 레이아웃, 분위기 등) |
+| `similarVideos` | List\<Object\> | 기획안과 유사한 영상 3개 |
+| `similarVideos[].videoUrl` | String | 유사 영상 YouTube URL |
+| `similarVideos[].videoTitle` | String | 유사 영상 제목 |
+| `similarCreators` | List\<Object\> | 유사한 유튜버 2명 |
+| `similarCreators[].channelUrl` | String | 유튜버 채널 URL |
+| `similarCreators[].creatorName` | String | 유튜버 이름 |
 
 ```json
 [
@@ -172,8 +179,32 @@ Content-Type: application/json
     ],
     "thumbnail": {
       "thumbnailImage": "https://pj-kmucd1-08-s3-thumbnails.s3.amazonaws.com/thumbnails/xxxx.png",
-      "thumbnailGuide": "배경은 깔끔한 화이트/그레이 톤..."
-    }
+      "thumbnailGuide": "밝은 배경에 큰 텍스트로 '3가지' 강조, 화살표 이미지로 상승 추세 표현"
+    },
+    "similarVideos": [
+      {
+        "videoUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "videoTitle": "유튜브 조회수 늘리는 방법 TOP 5"
+      },
+      {
+        "videoUrl": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        "videoTitle": "영상 구조 분석 | 성공한 유튜버들의 공통점"
+      },
+      {
+        "videoUrl": "https://www.youtube.com/watch?v=9bZkp7q19f0",
+        "videoTitle": "알고리즘 이해하고 영상 만들기"
+      }
+    ],
+    "similarCreators": [
+      {
+        "channelUrl": "https://www.youtube.com/channel/UCxxxxxx",
+        "creatorName": "유튜브 성장 전문가 채널"
+      },
+      {
+        "channelUrl": "https://www.youtube.com/channel/UCyyyyyy",
+        "creatorName": "콘텐츠 기획 마스터"
+      }
+    ]
   }
 ]
 ```
@@ -203,12 +234,22 @@ Content-Type: application/json
    └── 최근 10개 영상 중 10분 이하인 가장 최신 영상 URL 반환
 3. RecommendForm + latestVideoUrl + ... → GeminiService.writeScript()
    ├── Gemini 멀티모달 API로 영상 직접 시청 분석
-   └── 발화자 말투 파악 → 기획안 + 제목 5개 생성
+   └── 발화자 말투 파악 → 기획안 + 제목 5개 + 썸네일 가이드 생성
 4. 썸네일 생성 (실패해도 나머지 응답은 정상 반환)
    ├── YoutubeAPIService.getRecentThumbnailImages() → 최신 썸네일 3개 다운로드
    ├── BedrockService.analyzeThumbnailsAndGeneratePrompt() → Claude Vision으로 스타일 분석 + Imagen 프롬프트 생성
    ├── ImagenService.generateThumbnail() → Imagen 4로 16:9 썸네일 이미지 생성
-   └── S3Service.uploadBase64Image() → S3 업로드 후 URL 반환 → 응답에 thumbnailImage 추가
+   └── S3Service.uploadBase64Image() → S3 업로드 후 URL 반환 → 응답에 thumbnail 객체 추가
+5. 유사한 영상 3개 검색
+   └── YoutubeAPIService.getSimilarVideos(concept, keywords)
+       ├── 기획안 요약 + 키워드로 YouTube 검색
+       └── 상위 3개 영상의 URL + 제목 반환
+6. 유사한 유튜버 2명 검색
+   └── YoutubeAPIService.getSimilarCreators(keywords, category)
+       ├── 키워드 + 카테고리 + "creator"로 채널 검색
+       └── 상위 2개 채널의 URL + 이름 반환
+7. 최종 응답 구성
+   └── conceptSummary + suggestedTitles + thumbnail + similarVideos + similarCreators
 ```
 
 ---
@@ -234,7 +275,14 @@ src/main/java/com/capstone/crit/
 │   └── MainController.java            # /ai_recommend, /ai_script 엔드포인트
 ├── service/
 │   ├── GeminiService.java             # Google Gemini API 연동
+│   │   ├── recommendTopic()           # 주제 추천 (3개)
+│   │   └── writeScript()              # 기획안 + 제목 5개 + 썸네일 가이드 생성
 │   ├── YoutubeAPIService.java         # YouTube Data API 연동
+│   │   ├── getData()                  # 채널 정보 수집
+│   │   ├── getLatestVideoUrl()        # 최신 영상 URL 추출
+│   │   ├── getRecentThumbnailImages() # 최신 썸네일 3개 다운로드
+│   │   ├── getSimilarVideos()         # 유사 영상 3개 검색 ⭐ NEW
+│   │   └── getSimilarCreators()       # 유사 유튜버 2명 검색 ⭐ NEW
 │   ├── BedrockService.java            # AWS Bedrock Claude Vision — 썸네일 스타일 분석
 │   ├── ImagenService.java             # Google Imagen 4 — 썸네일 이미지 생성
 │   ├── S3Service.java                 # AWS S3 — 썸네일 이미지 업로드
@@ -267,6 +315,14 @@ src/main/java/com/capstone/crit/
 ---
 
 ## 변경 이력
+
+### 2026-04-06
+- **유사 영상/유튜버 검색 기능 추가** (`POST /ai_script` 응답에 `similarVideos`, `similarCreators` 추가)
+  - `YoutubeAPIService.getSimilarVideos()` 추가: 기획안과 유사한 영상 3개 검색 (URL + 제목)
+  - `YoutubeAPIService.getSimilarCreators()` 추가: 유사한 유튜버 2명 검색 (채널 URL + 이름)
+  - `MainController.AIScript()` 수정: 응답에 `similarVideos`, `similarCreators` 필드 포함
+  - 응답 구조: `thumbnail` 객체로 썸네일 정보 통합 (thumbnailImage + thumbnailGuide)
+  - README 업데이트: 새로운 기능 및 응답 구조 문서화
 
 ### 2026-04-05
 - **썸네일 자동 생성 기능 추가** (`POST /ai_script` 응답에 `thumbnailImage` 추가)

@@ -241,4 +241,88 @@ public class YoutubeAPIService {
             return 999; // 파싱 실패시 필터 제외
         }
     }
+
+    // 🔥 기획안과 유사한 영상 3개 검색 (URL + 제목)
+    public List<Map<String, String>> getSimilarVideos(String conceptSummary, String keywords) {
+        RestTemplate restTemplate = new RestTemplate();
+        ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, String>> similarVideos = new ArrayList<>();
+
+        try {
+            // 기획안 요약과 키워드를 조합하여 검색
+            String searchQuery = keywords + " " + conceptSummary.substring(0, Math.min(50, conceptSummary.length()));
+            
+            String searchUrl = "https://www.googleapis.com/youtube/v3/search"
+                    + "?part=snippet"
+                    + "&q=" + java.net.URLEncoder.encode(searchQuery, "UTF-8")
+                    + "&type=video"
+                    + "&maxResults=3"
+                    + "&order=relevance"
+                    + "&key=" + API_KEY;
+
+            ResponseEntity<String> response = restTemplate.getForEntity(searchUrl, String.class);
+            JsonNode items = mapper.readTree(response.getBody()).path("items");
+
+            for (JsonNode item : items) {
+                if (similarVideos.size() >= 3) break;
+                
+                String videoId = item.path("id").path("videoId").asText();
+                String title = item.path("snippet").path("title").asText();
+                
+                if (!videoId.isEmpty() && !title.isEmpty()) {
+                    Map<String, String> video = new HashMap<>();
+                    video.put("videoUrl", "https://www.youtube.com/watch?v=" + videoId);
+                    video.put("videoTitle", title);
+                    similarVideos.add(video);
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("유사 영상 검색 실패: " + e.getMessage());
+        }
+
+        return similarVideos;
+    }
+
+    // 🔥 유사한 유튜버 2명 검색 (채널 URL + 유튜버 이름)
+    public List<Map<String, String>> getSimilarCreators(String keywords, String category) {
+        RestTemplate restTemplate = new RestTemplate();
+        ObjectMapper mapper = new ObjectMapper();
+        List<Map<String, String>> similarCreators = new ArrayList<>();
+
+        try {
+            // 키워드와 카테고리를 조합하여 채널 검색
+            String searchQuery = keywords + " " + category + " creator";
+            
+            String searchUrl = "https://www.googleapis.com/youtube/v3/search"
+                    + "?part=snippet"
+                    + "&q=" + java.net.URLEncoder.encode(searchQuery, "UTF-8")
+                    + "&type=channel"
+                    + "&maxResults=2"
+                    + "&order=relevance"
+                    + "&key=" + API_KEY;
+
+            ResponseEntity<String> response = restTemplate.getForEntity(searchUrl, String.class);
+            JsonNode items = mapper.readTree(response.getBody()).path("items");
+
+            for (JsonNode item : items) {
+                if (similarCreators.size() >= 2) break;
+                
+                String channelId = item.path("id").path("channelId").asText();
+                String channelTitle = item.path("snippet").path("title").asText();
+                
+                if (!channelId.isEmpty() && !channelTitle.isEmpty()) {
+                    Map<String, String> creator = new HashMap<>();
+                    creator.put("channelUrl", "https://www.youtube.com/channel/" + channelId);
+                    creator.put("creatorName", channelTitle);
+                    similarCreators.add(creator);
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("유사 유튜버 검색 실패: " + e.getMessage());
+        }
+
+        return similarCreators;
+    }
 }
