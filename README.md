@@ -316,6 +316,13 @@ src/main/java/com/capstone/crit/
 
 ## 변경 이력
 
+### 2026-04-07
+- **유사 영상/유튜버 검색 API 호출 방식 개선**
+  - `YoutubeAPIService.getSimilarVideos()` 수정: RestTemplate → HttpURLConnection 변경
+  - `YoutubeAPIService.getSimilarCreators()` 수정: RestTemplate → HttpURLConnection 변경
+  - 이유: RestTemplate의 HTTPS 연결 문제로 인한 0개 결과 반환 → HttpURLConnection으로 안정적인 API 호출 구현
+  - 결과: YouTube API 검색 결과 정상 반환 확인 ✅
+
 ### 2026-04-06
 - **유사 영상/유튜버 검색 기능 추가** (`POST /ai_script` 응답에 `similarVideos`, `similarCreators` 추가)
   - `YoutubeAPIService.getSimilarVideos()` 추가: 기획안과 유사한 영상 3개 검색 (URL + 제목)

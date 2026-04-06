@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 @Service
 public class YoutubeAPIService {
 
-    private static final String API_KEY = "AIzaSyAZmCz7C9UMAs9zYVq28EdiVIxxY9-7Shk";
+    private static final String API_KEY = "AIzaSyDweOSLDQHn6_NMU8GxgzEKudXTNJMsQEU";
     private static final int MAX_VIDEOS = 10; // 🔥 분석할 최근 영상 수
 
     // 🔥 채널 URL을 받도록 변경 (기존: 영상 URL)
@@ -244,41 +244,93 @@ public class YoutubeAPIService {
 
     // 🔥 기획안과 유사한 영상 3개 검색 (URL + 제목)
     public List<Map<String, String>> getSimilarVideos(String conceptSummary, String keywords) {
-        RestTemplate restTemplate = new RestTemplate();
-        ObjectMapper mapper = new ObjectMapper();
         List<Map<String, String>> similarVideos = new ArrayList<>();
 
         try {
-            // 기획안 요약과 키워드를 조합하여 검색
-            String searchQuery = keywords + " " + conceptSummary.substring(0, Math.min(50, conceptSummary.length()));
+            String searchQuery = keywords;
+            
+            if (searchQuery == null || searchQuery.trim().isEmpty()) {
+                if (conceptSummary != null && !conceptSummary.isEmpty()) {
+                    String summary = conceptSummary.substring(0, Math.min(20, conceptSummary.length()));
+                    summary = summary.replaceAll("[^가-힣a-zA-Z0-9\\s]", "").trim();
+                    searchQuery = !summary.isEmpty() ? summary : "유튜브";
+                } else {
+                    searchQuery = "유튜브";
+                }
+            }
+            
+            String finalSearchQuery = searchQuery + " 리뷰";
+            String encodedQuery = java.net.URLEncoder.encode(finalSearchQuery, "UTF-8");
             
             String searchUrl = "https://www.googleapis.com/youtube/v3/search"
                     + "?part=snippet"
-                    + "&q=" + java.net.URLEncoder.encode(searchQuery, "UTF-8")
+                    + "&q=" + encodedQuery
                     + "&type=video"
                     + "&maxResults=3"
                     + "&order=relevance"
                     + "&key=" + API_KEY;
 
-            ResponseEntity<String> response = restTemplate.getForEntity(searchUrl, String.class);
-            JsonNode items = mapper.readTree(response.getBody()).path("items");
-
-            for (JsonNode item : items) {
-                if (similarVideos.size() >= 3) break;
-                
-                String videoId = item.path("id").path("videoId").asText();
-                String title = item.path("snippet").path("title").asText();
-                
-                if (!videoId.isEmpty() && !title.isEmpty()) {
-                    Map<String, String> video = new HashMap<>();
-                    video.put("videoUrl", "https://www.youtube.com/watch?v=" + videoId);
-                    video.put("videoTitle", title);
-                    similarVideos.add(video);
+            System.out.println("🔍 [유사 영상] 검색 쿼리: " + finalSearchQuery);
+            System.out.println("🔍 [유사 영상] 검색 URL: " + searchUrl);
+            
+            // HttpURLConnection 사용
+            java.net.URL url = new java.net.URL(searchUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            
+            int responseCode = conn.getResponseCode();
+            System.out.println("🔍 [유사 영상] HTTP 상태: " + responseCode);
+            
+            if (responseCode == 200) {
+                java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
                 }
+                reader.close();
+                
+                String responseBody = response.toString();
+                System.out.println("🔍 [유사 영상] API 응답: " + responseBody);
+                
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(responseBody);
+                
+                if (root.has("error")) {
+                    System.out.println("❌ [유사 영상] API 에러: " + root.path("error").path("message").asText());
+                    return similarVideos;
+                }
+                
+                JsonNode items = root.path("items");
+                int totalResults = root.path("pageInfo").path("totalResults").asInt();
+                System.out.println("🔍 [유사 영상] 검색 결과 개수: " + totalResults);
+
+                for (JsonNode item : items) {
+                    if (similarVideos.size() >= 3) break;
+                    
+                    String videoId = item.path("id").path("videoId").asText();
+                    String title = item.path("snippet").path("title").asText();
+                    
+                    if (!videoId.isEmpty() && !title.isEmpty()) {
+                        Map<String, String> video = new HashMap<>();
+                        video.put("videoUrl", "https://www.youtube.com/watch?v=" + videoId);
+                        video.put("videoTitle", title);
+                        similarVideos.add(video);
+                    }
+                }
+            } else {
+                System.out.println("❌ [유사 영상] HTTP 에러: " + responseCode);
             }
+            
+            conn.disconnect();
+            System.out.println("🔍 [유사 영상] 최종 결과: " + similarVideos.size() + "개");
 
         } catch (Exception e) {
-            System.err.println("유사 영상 검색 실패: " + e.getMessage());
+            System.err.println("❌ [유사 영상] 검색 실패: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return similarVideos;
@@ -286,41 +338,93 @@ public class YoutubeAPIService {
 
     // 🔥 유사한 유튜버 2명 검색 (채널 URL + 유튜버 이름)
     public List<Map<String, String>> getSimilarCreators(String keywords, String category) {
-        RestTemplate restTemplate = new RestTemplate();
-        ObjectMapper mapper = new ObjectMapper();
         List<Map<String, String>> similarCreators = new ArrayList<>();
 
         try {
-            // 키워드와 카테고리를 조합하여 채널 검색
-            String searchQuery = keywords + " " + category + " creator";
+            String searchQuery = keywords;
             
+            if (category != null && !category.trim().isEmpty()) {
+                String firstCategory = category.split(",")[0].trim();
+                firstCategory = firstCategory.replaceAll("[^가-힣a-zA-Z0-9\\s]", "").trim();
+                if (!firstCategory.isEmpty()) {
+                    searchQuery = keywords + " " + firstCategory;
+                }
+            }
+            
+            if (searchQuery == null || searchQuery.trim().isEmpty()) {
+                searchQuery = "유튜브 크리에이터";
+            }
+            
+            String encodedQuery = java.net.URLEncoder.encode(searchQuery, "UTF-8");
             String searchUrl = "https://www.googleapis.com/youtube/v3/search"
                     + "?part=snippet"
-                    + "&q=" + java.net.URLEncoder.encode(searchQuery, "UTF-8")
+                    + "&q=" + encodedQuery
                     + "&type=channel"
                     + "&maxResults=2"
                     + "&order=relevance"
                     + "&key=" + API_KEY;
 
-            ResponseEntity<String> response = restTemplate.getForEntity(searchUrl, String.class);
-            JsonNode items = mapper.readTree(response.getBody()).path("items");
-
-            for (JsonNode item : items) {
-                if (similarCreators.size() >= 2) break;
-                
-                String channelId = item.path("id").path("channelId").asText();
-                String channelTitle = item.path("snippet").path("title").asText();
-                
-                if (!channelId.isEmpty() && !channelTitle.isEmpty()) {
-                    Map<String, String> creator = new HashMap<>();
-                    creator.put("channelUrl", "https://www.youtube.com/channel/" + channelId);
-                    creator.put("creatorName", channelTitle);
-                    similarCreators.add(creator);
+            System.out.println("🔍 [유사 유튜버] 검색 쿼리: " + searchQuery);
+            System.out.println("🔍 [유사 유튜버] 검색 URL: " + searchUrl);
+            
+            // HttpURLConnection 사용
+            java.net.URL url = new java.net.URL(searchUrl);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            
+            int responseCode = conn.getResponseCode();
+            System.out.println("🔍 [유사 유튜버] HTTP 상태: " + responseCode);
+            
+            if (responseCode == 200) {
+                java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream(), "UTF-8"));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
                 }
+                reader.close();
+                
+                String responseBody = response.toString();
+                System.out.println("🔍 [유사 유튜버] API 응답: " + responseBody);
+                
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode root = mapper.readTree(responseBody);
+                
+                if (root.has("error")) {
+                    System.out.println("❌ [유사 유튜버] API 에러: " + root.path("error").path("message").asText());
+                    return similarCreators;
+                }
+                
+                JsonNode items = root.path("items");
+                int totalResults = root.path("pageInfo").path("totalResults").asInt();
+                System.out.println("🔍 [유사 유튜버] 검색 결과 개수: " + totalResults);
+
+                for (JsonNode item : items) {
+                    if (similarCreators.size() >= 2) break;
+                    
+                    String channelId = item.path("id").path("channelId").asText();
+                    String channelTitle = item.path("snippet").path("title").asText();
+                    
+                    if (!channelId.isEmpty() && !channelTitle.isEmpty()) {
+                        Map<String, String> creator = new HashMap<>();
+                        creator.put("channelUrl", "https://www.youtube.com/channel/" + channelId);
+                        creator.put("creatorName", channelTitle);
+                        similarCreators.add(creator);
+                    }
+                }
+            } else {
+                System.out.println("❌ [유사 유튜버] HTTP 에러: " + responseCode);
             }
+            
+            conn.disconnect();
+            System.out.println("🔍 [유사 유튜버] 최종 결과: " + similarCreators.size() + "개");
 
         } catch (Exception e) {
-            System.err.println("유사 유튜버 검색 실패: " + e.getMessage());
+            System.err.println("❌ [유사 유튜버] 검색 실패: " + e.getMessage());
+            e.printStackTrace();
         }
 
         return similarCreators;
