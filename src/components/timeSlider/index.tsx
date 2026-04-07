@@ -25,7 +25,7 @@ const TimeSlider = ({ defaultValue = 0, onChange }: TimeSliderProps) => {
   return (
     <div className="relative w-120 flex flex-col">
       <div
-        className={`absolute -top-8 px-2 py-1 rounded-md bg-[#A594F9]/80 text-white text-xs font-semibold transition-all duration-200 ${dragging ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
+        className={`absolute -top-8 px-3 py-1 rounded-md bg-[#A594F9]/80 text-white text-xs font-semibold transition-all duration-200 whitespace-nowrap ${dragging ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}
         style={{ left: `calc(${percent}% - 16px)` }}
       >
         {value}분

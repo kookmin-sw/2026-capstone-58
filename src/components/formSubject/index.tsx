@@ -1,5 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import SubjectItem from '@/components/subjectItem';
+import useRecommendStore from '@/stores/useRecommendStore';
+import useAIFormStore from '@/stores/useAIFormStore';
+import { postScript } from '@/api/command';
+import { useShallow } from 'zustand/react/shallow';
 
 interface FormSubjectProps {
   onSelect?: () => void;
@@ -10,16 +14,52 @@ const FormSubject = ({ onSelect }: FormSubjectProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | undefined>(undefined);
+  const { recommendations, formInput } = useRecommendStore(
+    useShallow(s => ({
+      recommendations: s.recommendations,
+      formInput: s.formInput,
+    })),
+  );
+  const setData = useAIFormStore(s => s.setData);
 
   useEffect(() => {
     if (contentRef.current) {
       setContentHeight(contentRef.current.scrollHeight);
     }
-  }, []);
+  }, [recommendations]);
 
-  const handleClick = (index: number) => {
+  const handleClick = async (index: number) => {
     setSelectedIndex(index);
     setCollapsed(true);
+
+    const item = recommendations[index];
+    const title = item?.suggestedTitle ?? '';
+    const concept = item?.conceptSummary ?? '';
+
+    try {
+      const res = await postScript({
+        requestURL: formInput.requestURL,
+        title,
+        concept,
+        keywords: formInput.keywords,
+        category: formInput.category,
+        time: formInput.time,
+      });
+      const item = res[0] ?? res;
+      setData({
+        conceptSummary: item.conceptSummary ?? '',
+        suggestedTitles: (item.suggestedTitles ?? []).slice(0, 3),
+        thumbnail: {
+          thumbnailImage: item.thumbnail?.thumbnailImage ?? '',
+          thumbnailGuide: item.thumbnail?.thumbnailGuide ?? '',
+        },
+        similarVideos: item.similarVideos ?? [],
+        similarCreators: item.similarCreators ?? [],
+      });
+    } catch (err) {
+      console.error('스크립트 요청 실패:', err);
+    }
+
     onSelect?.();
   };
 
@@ -35,9 +75,19 @@ const FormSubject = ({ onSelect }: FormSubjectProps) => {
             '다음 영상으로 제작하기 좋은 콘텐츠 주제를 확인해보세요.\n관심 있는 주제를 클릭하면 상세 기획을 확인할 수 있습니다.'
           }
         </div>
-        {[0, 1, 2].map(i => (
-          <SubjectItem key={i} selected={selectedIndex === i} onClick={() => handleClick(i)} />
-        ))}
+        {recommendations.length > 0
+          ? recommendations.map((item, i) => (
+              <SubjectItem
+                key={i}
+                subject={item.suggestedTitle}
+                subjectContent={item.conceptSummary}
+                selected={selectedIndex === i}
+                onClick={() => handleClick(i)}
+              />
+            ))
+          : [0, 1, 2].map(i => (
+              <SubjectItem key={i} selected={selectedIndex === i} onClick={() => handleClick(i)} />
+            ))}
       </div>
       {selectedIndex !== null && (
         <div className="flex w-full items-center relative">
