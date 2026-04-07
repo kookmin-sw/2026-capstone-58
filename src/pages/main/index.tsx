@@ -24,7 +24,7 @@ const MainPage = () => {
       <div className="flex flex-col items-center w-270 mx-auto gap-10">
         <div className="flex flex-col items-center mt-20 w-full mx-auto">
           <div className="relative z-10 mb-[-32px]">
-            <TabList tabs={['숏폼', '롱폼']} />
+            <TabList tabs={['롱폼', '숏폼']} />
           </div>
           <FormList onSearch={handleSearch} />
         </div>

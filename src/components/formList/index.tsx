@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import FormContainer from '@/components/formContainer';
 import CheckBox from '@/components/checkBox';
-
 import TimeSlider from '@/components/timeSlider';
+import { postRecommend } from '@/api/command';
+import useRecommendStore from '@/stores/useRecommendStore';
+import { useShallow } from 'zustand/react/shallow';
 
 const categories = [
   'Games',
@@ -28,8 +30,19 @@ interface FormListProps {
 const FormList = ({ onSearch }: FormListProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [time, setTime] = useState(0);
+  const [errorMsg, setErrorMsg] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | undefined>(undefined);
+  const { setRecommendations, setFormInput } = useRecommendStore(
+    useShallow(s => ({
+      setRecommendations: s.setRecommendations,
+      setFormInput: s.setFormInput,
+    })),
+  );
 
   useEffect(() => {
     if (contentRef.current) {
@@ -37,9 +50,45 @@ const FormList = ({ onSearch }: FormListProps) => {
     }
   }, []);
 
-  const handleSearch = () => {
+  const handleCategoryToggle = (category: string, checked: boolean) => {
+    setSelectedCategories(prev =>
+      checked ? [...prev, category] : prev.filter(c => c !== category),
+    );
+  };
+
+  const handleSearch = async () => {
+    const missing: string[] = [];
+    if (!keyword.trim()) missing.push('Keyword');
+    if (!youtubeUrl.trim()) missing.push('YouTube URL');
+    if (selectedCategories.length === 0) missing.push('Category');
+    if (time === 0) missing.push('Time');
+
+    if (missing.length > 0) {
+      setErrorMsg(`${missing.join(', ')}을(를) 입력해주세요.`);
+      return;
+    }
+
+    setErrorMsg('');
     setCollapsed(true);
     setSearched(true);
+
+    try {
+      const res = await postRecommend({
+        requestURL: youtubeUrl,
+        keywords: keyword,
+        category: `{${selectedCategories.join(', ')}}`,
+      });
+      setRecommendations(res);
+      setFormInput({
+        requestURL: youtubeUrl,
+        keywords: keyword,
+        category: `{${selectedCategories.join(', ')}}`,
+        time,
+      });
+    } catch (err) {
+      console.error('추천 요청 실패:', err);
+    }
+
     onSearch?.();
   };
 
@@ -53,25 +102,40 @@ const FormList = ({ onSearch }: FormListProps) => {
         <div className="flex w-234 py-9 px-8 flex-col justify-center items-center gap-6 rounded-xl border border-black/10 bg-white">
           <div className="flex pb-14 pl-6 pr-4 flex-col items-start gap-12">
             <div className="flex w-196 h-21 justify-center items-start gap-6">
-              <FormContainer title="Keyword" placeholder="예) 여행브이로그 / 다이어트 식단" />
-              <FormContainer title="YouTube URL" placeholder="예) https://youtube.com/@channel" />
+              <FormContainer
+                title="Keyword"
+                placeholder="예) 여행브이로그 / 다이어트 식단"
+                value={keyword}
+                onChange={setKeyword}
+              />
+              <FormContainer
+                title="YouTube URL"
+                placeholder="예) https://youtube.com/@channel"
+                value={youtubeUrl}
+                onChange={setYoutubeUrl}
+              />
             </div>
             <div className="flex w-196 flex-col items-start gap-4">
               <div className="typo-title text-[#0A0A0A]">Category</div>
               <div className="h-78 self-stretch grid grid-cols-3 gap-4 content-start">
                 {categories.map(category => (
-                  <CheckBox key={category} label={category} />
+                  <CheckBox
+                    key={category}
+                    label={category}
+                    onChange={checked => handleCategoryToggle(category, checked)}
+                  />
                 ))}
               </div>
             </div>
             <div className="flex w-196 flex-col items-start gap-4">
               <div className="typo-title text-[#0A0A0A]">Time</div>
-              <TimeSlider />
+              <TimeSlider onChange={setTime} />
             </div>
           </div>
         </div>
       </div>
       <div className="flex w-full items-center relative">
+        {errorMsg && <div className="absolute left-0 text-sm text-red-500">{errorMsg}</div>}
         <div
           onClick={handleSearch}
           className="flex py-2.5 px-5 mx-auto justify-center items-center gap-2.5 rounded-lg bg-[#7C5CFF] active:bg-[#6344DD] typo-title text-white text-center tracking-widest cursor-pointer"
