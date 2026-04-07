@@ -24,8 +24,8 @@ const VideoTitle = ({ title, onRegenerate }: VideoTitleProps) => {
   };
 
   return (
-    <div className="flex py-3 px-4 justify-end items-center gap-10 self-stretch rounded-xl border border-[#a1a1a163] bg-[#FAFAFA]">
-      <div className="w-64 text-black text-sm font-semibold leading-[21px] whitespace-pre-line">
+    <div className="flex py-3 px-4 justify-end items-center gap-10 self-stretch rounded-xl border border-[#A594F9] bg-[#FAFAFA]">
+      <div className="w-64 typo-label2 text-black whitespace-pre-line">
         {title.replace(/\(/g, '\n(')}
       </div>
       <div className="flex w-17 h-12 justify-end flex-col">

@@ -49,6 +49,12 @@ const FormSubject = ({ onSelect }: FormSubjectProps) => {
       setData({
         conceptSummary: item.conceptSummary ?? '',
         suggestedTitles: (item.suggestedTitles ?? []).slice(0, 3),
+        thumbnail: {
+          thumbnailImage: item.thumbnail?.thumbnailImage ?? '',
+          thumbnailGuide: item.thumbnail?.thumbnailGuide ?? '',
+        },
+        similarVideos: item.similarVideos ?? [],
+        similarCreators: item.similarCreators ?? [],
       });
     } catch (err) {
       console.error('스크립트 요청 실패:', err);

@@ -8,6 +8,15 @@ interface RecommendRequest {
   category: string;
 }
 
+interface ScriptRequest {
+  requestURL: string;
+  keywords: string;
+  category: string;
+  time: number;
+  title: string;
+  concept: string;
+}
+
 // ===== API Functions =====
 
 // POST /ai_recommend - AI 추천 주제 요청
@@ -21,15 +30,6 @@ export const postRecommend = async (data: RecommendRequest) => {
   });
   return response.data;
 };
-
-interface ScriptRequest {
-  requestURL: string;
-  keywords: string;
-  category: string;
-  time: number;
-  title: string;
-  concept: string;
-}
 
 // POST /ai_script - AI 제목/스크립트 요청
 export const postScript = async (data: ScriptRequest) => {

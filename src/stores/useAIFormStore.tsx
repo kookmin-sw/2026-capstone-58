@@ -1,8 +1,24 @@
 import { create } from 'zustand';
 
+interface SimilarVideo {
+  videoUrl: string;
+  videoTitle: string;
+}
+
+interface SimilarCreator {
+  channelUrl: string;
+  creatorName: string;
+}
+
 interface AIFormData {
   conceptSummary: string;
   suggestedTitles: string[];
+  thumbnail: {
+    thumbnailImage: string;
+    thumbnailGuide: string;
+  };
+  similarVideos: SimilarVideo[];
+  similarCreators: SimilarCreator[];
 }
 
 interface AIFormStore {
