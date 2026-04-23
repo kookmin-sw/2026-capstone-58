@@ -39,7 +39,9 @@ public class ChannelAnalyzeService {
 
         int channelScore = calculateChannelScore(channel, videos);
         double growthRate = calculateGrowthRate(channel);
-        List<Map<String, String>> guides = generateGuides(channel, videos);
+
+        // 가이드: DB에 저장된 게 없으면 생성 후 저장
+        List<Map<String, String>> guides = getOrGenerateGuides(channel, videos);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("channel", Map.of(
@@ -52,7 +54,7 @@ public class ChannelAnalyzeService {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("avgViewCount", channel.getAvgViewCount());
         summary.put("uploadFrequencyPerWeek", channel.getUploadFrequencyPerWeek());
-        summary.put("avgWatchDurationSeconds", channel.getAvgWatchDurationSeconds()); // null 가능 (Analytics API 보류)
+        summary.put("avgWatchDurationSeconds", channel.getAvgWatchDurationSeconds());
         summary.put("subscriberGrowthRate", growthRate);
         result.put("summary", summary);
         result.put("guides", guides);
@@ -76,6 +78,32 @@ public class ChannelAnalyzeService {
         ChannelCache fresh = fetchChannelFromYoutube(channelId, previousSubscriberCount);
         cached.ifPresent(c -> channelCacheRepository.deleteById(c.getId()));
         return channelCacheRepository.save(fresh);
+    }
+
+    private List<Map<String, String>> getOrGenerateGuides(ChannelCache channel, List<VideoCache> videos) {
+        // DB에 저장된 가이드가 있으면 바로 반환
+        if (channel.getGuidesJson() != null) {
+            try {
+                JsonNode arr = objectMapper.readTree(channel.getGuidesJson());
+                List<Map<String, String>> guides = new ArrayList<>();
+                for (JsonNode node : arr) {
+                    guides.add(Map.of("title", node.path("title").asText(), "description", node.path("description").asText()));
+                }
+                return guides;
+            } catch (Exception e) {
+                log.warn("가이드 파싱 실패, 재생성: {}", e.getMessage());
+            }
+        }
+
+        // 없으면 Bedrock으로 생성 후 DB에 저장
+        List<Map<String, String>> guides = generateGuides(channel, videos);
+        try {
+            String json = objectMapper.writeValueAsString(guides);
+            channelCacheRepository.updateGuidesJson(channel.getId(), json);
+        } catch (Exception e) {
+            log.warn("가이드 저장 실패: {}", e.getMessage());
+        }
+        return guides;
     }
 
     private List<VideoCache> getOrFetchVideos(String channelId, ChannelCache channel) {
@@ -126,15 +154,16 @@ public class ChannelAnalyzeService {
 
     private List<VideoCache> fetchVideosFromYoutube(String channelId, ChannelCache channel) {
         try {
-            // 최신 영상 10개 videoId 조회
-            String searchUrl = YT_API + "/search?part=snippet&channelId=" + channelId
-                    + "&order=date&maxResults=10&type=video&key=" + youtubeApiKey;
-            String searchResp = WebClient.create().get().uri(searchUrl).retrieve().bodyToMono(String.class).block();
-            JsonNode searchItems = objectMapper.readTree(searchResp).path("items");
+            // UC → UU 변환으로 업로드 플레이리스트 ID 생성 (1 유닛)
+            String uploadPlaylistId = "UU" + channelId.substring(2);
+            String playlistUrl = YT_API + "/playlistItems?part=contentDetails&playlistId=" + uploadPlaylistId
+                    + "&maxResults=10&key=" + youtubeApiKey;
+            String playlistResp = WebClient.create().get().uri(playlistUrl).retrieve().bodyToMono(String.class).block();
+            JsonNode playlistItems = objectMapper.readTree(playlistResp).path("items");
 
             List<String> videoIds = new ArrayList<>();
-            for (JsonNode item : searchItems) {
-                videoIds.add(item.path("id").path("videoId").asText());
+            for (JsonNode item : playlistItems) {
+                videoIds.add(item.path("contentDetails").path("videoId").asText());
             }
 
             // 영상 상세 통계 조회

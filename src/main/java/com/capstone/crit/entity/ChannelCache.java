@@ -28,6 +28,9 @@ public class ChannelCache {
     private Double uploadFrequencyPerWeek;   // 주 업로드 빈도
     private Double avgWatchDurationSeconds;  // 평균 시청 지속 시간(초)
 
+    @Column(columnDefinition = "TEXT")
+    private String guidesJson; // JSON 직렬화된 가이드 목록
+
     @Column(nullable = false)
     private LocalDateTime fetchedAt;
 }
