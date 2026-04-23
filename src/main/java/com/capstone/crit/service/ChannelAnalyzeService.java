@@ -32,6 +32,44 @@ public class ChannelAnalyzeService {
     private static final int CACHE_DAYS = 30;
     private static final String YT_API = "https://www.googleapis.com/youtube/v3";
 
+    public Map<String, Object> analyzeByInput(String input) {
+        String channelId = resolveChannelId(input.trim());
+        return analyze(channelId);
+    }
+
+    // 입력값 → 채널 ID 변환
+    private String resolveChannelId(String input) {
+        // 이미 채널 ID 형식 (UC로 시작, 24자)
+        if (input.startsWith("UC") && input.length() == 24) {
+            return input;
+        }
+
+        // URL에서 handle 또는 채널 ID 추출
+        String handle = input;
+        if (input.contains("youtube.com/channel/")) {
+            // https://www.youtube.com/channel/UCxxxxxx
+            String id = input.substring(input.indexOf("/channel/") + 9).split("[/?]")[0];
+            if (id.startsWith("UC")) return id;
+        } else if (input.contains("youtube.com/@")) {
+            // https://www.youtube.com/@handle
+            handle = "@" + input.substring(input.indexOf("/@") + 2).split("[/?]")[0];
+        }
+
+        // @handle → 채널 ID 변환 (YouTube API 호출)
+        String forHandle = handle.startsWith("@") ? handle.substring(1) : handle;
+        try {
+            String url = YT_API + "/channels?part=id&forHandle=" + forHandle + "&key=" + youtubeApiKey;
+            String resp = WebClient.create().get().uri(url).retrieve().bodyToMono(String.class).block();
+            JsonNode items = objectMapper.readTree(resp).path("items");
+            if (items.isEmpty()) throw new RuntimeException("채널을 찾을 수 없습니다: " + input);
+            return items.get(0).path("id").asText();
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("채널 ID 조회 실패: " + e.getMessage(), e);
+        }
+    }
+
     @Transactional
     public Map<String, Object> analyze(String channelId) {
         ChannelCache channel = getOrFetchChannel(channelId);
