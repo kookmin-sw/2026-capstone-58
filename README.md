@@ -300,6 +300,70 @@ Content-Type: application/json
 
 ---
 
+## DB 구조 (채널 분석 캐시)
+
+### channel_cache
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| `id` | BIGINT | PK |
+| `channel_id` | VARCHAR | 유튜브 채널 ID (unique) |
+| `channel_name` | VARCHAR | 채널명 |
+| `profile_image_url` | VARCHAR | 프로필 이미지 URL |
+| `subscriber_count` | BIGINT | 현재 구독자 수 |
+| `previous_subscriber_count` | BIGINT | 이전 캐시 시점 구독자 수 (성장률 계산용) |
+| `total_video_count` | BIGINT | 전체 영상 수 |
+| `avg_view_count` | DOUBLE | 평균 조회수 |
+| `upload_frequency_per_week` | DOUBLE | 주 업로드 빈도 |
+| `avg_watch_duration_seconds` | DOUBLE | 평균 시청 지속 시간 (Analytics API 연동 전 null) |
+| `guides_json` | TEXT | AI 생성 가이드 JSON 문자열 |
+| `fetched_at` | DATETIME | 수집 시각 (캐시 만료 기준) |
+
+### video_cache
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| `id` | BIGINT | PK |
+| `channel_id` | VARCHAR | 유튜브 채널 ID |
+| `video_id` | VARCHAR | 유튜브 영상 ID |
+| `title` | VARCHAR | 영상 제목 |
+| `thumbnail_url` | VARCHAR | 썸네일 URL |
+| `view_count` | BIGINT | 조회수 |
+| `like_count` | BIGINT | 좋아요 수 |
+| `comment_count` | BIGINT | 댓글 수 |
+| `duration_seconds` | BIGINT | 영상 길이 (초) |
+| `algorithm_score` | INT | 알고리즘 점수 (0~100) |
+| `video_rank` | INT | 최신순 순위 (1~10) |
+| `fetched_at` | DATETIME | 수집 시각 (캐시 만료 기준) |
+
+> 테이블은 `spring.jpa.hibernate.ddl-auto=update` 설정으로 서버 시작 시 자동 생성/변경됩니다.
+
+---
+
+## YouTube API 사용량
+
+YouTube Data API는 하루 **10,000 유닛** 무료 할당량이 있습니다.
+
+### 캐시 미스 (최초 조회 or 30일 만료 시)
+
+| API 호출 | 방식 | 유닛 |
+|---------|------|------|
+| 채널 정보 조회 (`channels?part=snippet,statistics`) | - | 3 유닛 |
+| 최신 영상 ID 조회 (`playlistItems`) | UC→UU 변환 | 1 유닛 |
+| 영상 상세 조회 (`videos?part=snippet,statistics,contentDetails`) | - | 3 유닛 |
+| **합계** | | **7 유닛 / 1회** |
+
+### 캐시 히트 (30일 이내 재조회 시)
+
+| 항목 | 유닛 |
+|------|------|
+| YouTube API 호출 | **0 유닛** |
+| Bedrock 호출 | 없음 (guidesJson 캐시) |
+
+> 하루 10,000 유닛 기준으로 캐시 미스 시 약 **1,428회** 채널 분석 가능
+
+---
+
 ## 프로젝트 구조
 
 ```
