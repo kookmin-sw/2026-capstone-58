@@ -100,6 +100,10 @@ public class BedrockService {
         }
     }
 
+    public String invokeModelPublic(String prompt) {
+        return invokeModel(prompt);
+    }
+
     private String invokeModel(String prompt) {        try {
             Map<String, Object> body = Map.of(
                 "anthropic_version", "bedrock-2023-05-31",

@@ -116,7 +116,40 @@ Content-Type: application/json
 
 ---
 
-### 2. 영상 기획 및 제목 생성
+### 2. 채널 분석
+
+채널 ID로 유튜브 채널을 분석합니다. 30일 캐싱 적용.
+
+```
+GET /analyze/channel?channelId={channelId}
+```
+
+#### Request Params
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| `channelId` | String | 유튜브 채널 ID | `UCSLrpBAzr-ROVGHQ5EmxnUg` |
+
+> 채널 ID 조회: `https://www.googleapis.com/youtube/v3/channels?part=id&forHandle={handle}&key={API_KEY}`
+
+#### Response
+
+| 필드 | 설명 |
+|------|------|
+| `channel.name` | 채널명 |
+| `channel.subscriberCount` | 구독자 수 |
+| `channel.profileImageUrl` | 프로필 이미지 URL |
+| `algorithmScore` | 채널 알고리즘 점수 (0~100) |
+| `summary.avgViewCount` | 평균 조회수 |
+| `summary.uploadFrequencyPerWeek` | 주 업로드 빈도 |
+| `summary.avgWatchDurationSeconds` | 평균 시청 지속 시간 (Analytics API 연동 전 null) |
+| `summary.subscriberGrowthRate` | 구독자 성장률 (%) |
+| `guides` | AI 생성 채널 방향 가이드 (title + description) |
+| `recentVideos` | 최신 영상 10개 (videoId, title, thumbnailUrl, algorithmScore) |
+
+---
+
+### 3. 영상 기획 및 제목 생성
 
 채널 최신 영상을 직접 분석하여 발화자 말투와 스타일을 반영한 기획안과 추천 제목을 생성합니다.
 또한 기획안과 유사한 영상 3개와 유사한 유튜버 2명을 자동으로 검색하여 제공합니다.
@@ -272,26 +305,33 @@ Content-Type: application/json
 ```
 src/main/java/com/capstone/crit/
 ├── controller/
-│   └── MainController.java            # /ai_recommend, /ai_script 엔드포인트
+│   ├── MainController.java            # /ai_recommend, /ai_script 엔드포인트
+│   └── AnalyzeController.java         # /analyze/channel 엔드포인트
 ├── service/
 │   ├── GeminiService.java             # Google Gemini API 연동
-│   │   ├── recommendTopic()           # 주제 추천 (3개)
-│   │   └── writeScript()              # 기획안 + 제목 5개 + 썸네일 가이드 생성
 │   ├── YoutubeAPIService.java         # YouTube Data API 연동
-│   │   ├── getData()                  # 채널 정보 수집
-│   │   ├── getLatestVideoUrl()        # 최신 영상 URL 추출
-│   │   ├── getRecentThumbnailImages() # 최신 썸네일 3개 다운로드
-│   │   ├── getSimilarVideos()         # 유사 영상 3개 검색 ⭐ NEW
-│   │   └── getSimilarCreators()       # 유사 유튜버 2명 검색 ⭐ NEW
-│   ├── BedrockService.java            # AWS Bedrock Claude Vision — 썸네일 스타일 분석
+│   ├── ChannelAnalyzeService.java     # 채널 분석 (캐싱 + 점수 계산 + 가이드 생성)
+│   ├── BedrockService.java            # AWS Bedrock Claude — 썸네일 분석 + 가이드 생성
 │   ├── ImagenService.java             # Google Imagen 4 — 썸네일 이미지 생성
 │   ├── S3Service.java                 # AWS S3 — 썸네일 이미지 업로드
 │   └── AIService.java                 # AI 서비스 인터페이스
+├── entity/
+│   ├── ApiLog.java
+│   ├── RecommendLog.java
+│   ├── ScriptLog.java
+│   ├── ChannelCache.java              # 채널 캐시 (30일)
+│   └── VideoCache.java                # 영상 캐시 (30일)
+├── repository/
+│   ├── ApiLogRepository.java
+│   ├── RecommendLogRepository.java
+│   ├── ScriptLogRepository.java
+│   ├── ChannelCacheRepository.java
+│   └── VideoCacheRepository.java
 ├── form/
-│   └── RecommendForm.java             # 채널 정보 객체
+│   └── RecommendForm.java
 ├── dto/
 │   └── TrendRequest.java
-└── SwaggerConfig.java                 # Swagger 설정
+└── SwaggerConfig.java
 ```
 
 ### RecommendForm 필드
@@ -315,6 +355,24 @@ src/main/java/com/capstone/crit/
 ---
 
 ## 변경 이력
+
+### 2026-04-23
+- **채널 분석 페이지 API 추가** (`GET /analyze/channel`)
+  - `ChannelCache` 엔티티 추가: 채널 기본 정보 + 통계 (30일 캐싱)
+  - `VideoCache` 엔티티 추가: 최신 영상 10개 정보 + 알고리즘 점수 (30일 캐싱)
+  - `ChannelCacheRepository`, `VideoCacheRepository` 추가
+  - `ChannelAnalyzeService` 추가
+    - YouTube Data API로 채널/영상 데이터 수집
+    - 30일 캐싱 정책 적용 (재요청 시 DB에서 반환, 만료 시 YouTube API 재호출)
+    - 영상 알고리즘 점수 계산 (조회수 비율 + 인게이지먼트율 + 영상 길이 보너스)
+    - 구독자 성장률 계산 (이전 캐시 구독자 수 vs 현재 비교)
+    - Bedrock Claude로 채널 방향 가이드 AI 생성
+  - `AnalyzeController` 추가: `GET /analyze/channel?channelId=` 엔드포인트
+  - `BedrockService.invokeModelPublic()` 추가
+  - `application.properties`에 `youtube.api.key` 설정 추가
+  - AWS RDS MySQL 연동 (엔드포인트: `pj-kmucd1-08-db.cj24wem202yj.us-east-1.rds.amazonaws.com`)
+
+
 
 ### 2026-04-07
 - **유사 영상/유튜버 검색 API 호출 방식 개선**
