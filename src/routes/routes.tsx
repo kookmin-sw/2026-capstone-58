@@ -1,12 +1,14 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import MainPage from '@/pages/main';
+import LoginPage from '@/pages/login';
 
 const Router = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route index element={<MainPage />} />
+        <Route index element={<LoginPage />} />
+        <Route path="recommend" element={<MainPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

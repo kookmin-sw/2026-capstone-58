@@ -5,7 +5,7 @@ import FormList from '@/components/formList';
 import FormAnswer from '@/components/formAnswer';
 import FormSubject from '@/components/formSubject';
 
-const MainPage = () => {
+const mainPage = () => {
   const [showSubject, setShowSubject] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
 
@@ -39,4 +39,4 @@ const MainPage = () => {
   );
 };
 
-export default MainPage;
+export default mainPage;
