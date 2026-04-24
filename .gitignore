@@ -42,6 +42,8 @@ application-secret.yml
 src/main/resources/application-secret.yml
 **/gcp-key.json
 *.json.key
+gcp-key.json
+gcp-key/
 
 ### Environment Variables ###
 .env
