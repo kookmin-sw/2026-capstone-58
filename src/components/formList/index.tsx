@@ -93,12 +93,17 @@ const FormList = ({ onSearch }: FormListProps) => {
   };
 
   return (
-    <div className="flex w-250 pt-18 pb-12 px-8 flex-col justify-end items-center gap-10 rounded-xl bg-[#F7F6FB]">
+    <div className="flex w-250 pt-18 pb-12 px-8 flex-col justify-end items-center gap-10 rounded-xl bg-[#F5EFFF]">
       <div
         ref={contentRef}
-        className="overflow-hidden transition-all duration-500 ease-in-out"
+        className="flex flex-col overflow-hidden transition-all duration-500 ease-in-out gap-4"
         style={{ maxHeight: collapsed ? 0 : contentHeight, opacity: collapsed ? 0 : 1 }}
       >
+        <div className="flex justify-center w-full typo-title text-[#717171] text-center whitespace-pre-line">
+          {
+            '원하는 키워드와 채널 정보를 입력하면\nAI가 트렌드와 채널 데이터를 분석해 맞춤 콘텐츠 아이디어를 추천합니다.'
+          }
+        </div>
         <div className="flex w-234 py-9 px-8 flex-col justify-center items-center gap-6 rounded-xl border border-black/10 bg-white">
           <div className="flex pb-14 pl-6 pr-4 flex-col items-start gap-12">
             <div className="flex w-196 h-21 justify-center items-start gap-6">

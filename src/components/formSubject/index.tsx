@@ -64,7 +64,7 @@ const FormSubject = ({ onSelect }: FormSubjectProps) => {
   };
 
   return (
-    <div className="flex w-250 py-14 px-8 flex-col justify-end items-center gap-10 rounded-xl bg-[#F7F6FB]">
+    <div className="flex w-250 py-14 px-8 flex-col justify-end items-center gap-10 rounded-xl bg-[#F5EFFF]">
       <div
         ref={contentRef}
         className="flex flex-col items-center gap-10 overflow-hidden transition-all duration-500 ease-in-out w-full"
