@@ -15,6 +15,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import com.capstone.crit.service.ImprovedScoringService;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +25,7 @@ public class ChannelAnalyzeService {
     private final ChannelCacheRepository channelCacheRepository;
     private final VideoCacheRepository videoCacheRepository;
     private final BedrockService bedrockService;
+    private final ImprovedScoringService improvedScoringService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${youtube.api.key}")
@@ -81,6 +83,26 @@ public class ChannelAnalyzeService {
         // 가이드: DB에 저장된 게 없으면 생성 후 저장
         List<Map<String, String>> guides = getOrGenerateGuides(channel, videos);
 
+        // 개선된 알고리즘으로 각 영상의 성장 점수 계산
+        List<Map<String, Object>> improvedVideoScores = new ArrayList<>();
+        for (VideoCache video : videos) {
+            ImprovedScoringService.GrowthScoreResult scoreResult = improvedScoringService.calculateGrowthScore(
+                    video, channel, videos, "기타"
+            );
+            improvedVideoScores.add(Map.of(
+                    "videoId", video.getVideoId(),
+                    "title", video.getTitle(),
+                    "thumbnailUrl", video.getThumbnailUrl(),
+                    "growthScore", scoreResult.finalScore,
+                    "reachScore", scoreResult.reachScore,
+                    "engagementScore", scoreResult.engagementScore,
+                    "retentionScore", scoreResult.retentionScore,
+                    "growthImpactScore", scoreResult.growthImpactScore,
+                    "channelStage", scoreResult.channelStage,
+                    "insights", scoreResult.insights
+            ));
+        }
+
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("channel", Map.of(
                 "channelId", channel.getChannelId(),
@@ -102,6 +124,9 @@ public class ChannelAnalyzeService {
                 "thumbnailUrl", v.getThumbnailUrl(),
                 "algorithmScore", v.getAlgorithmScore()
         )).toList());
+        
+        // 개선된 알고리즘 결과 추가
+        result.put("improvedVideoAnalysis", improvedVideoScores);
 
         return result;
     }
