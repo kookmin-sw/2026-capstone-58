@@ -140,6 +140,7 @@ public class GeminiService {
         5. 기존 키워드/카테고리에서 확장하거나 트렌디한 요소를 추가하세요.
         6. 기획안에 맞는 제목 5개를 생성하세요.
         7. 반드시 아래 JSON 형식으로만 출력하세요. (Markdown 기호 절대 금지)
+        8. thumbnailGuide 내용은 공백 포함 100자 이내로 출력되게 하세요
 
         [
           {
@@ -150,7 +151,8 @@ public class GeminiService {
               "제목 3",
               "제목 4",
               "제목 5"
-            ]
+            ],
+            "thumbnailGuide": "썸네일 구성 가이드 (색상, 레이아웃, 분위기 등)"
           }
         ]
         """,
