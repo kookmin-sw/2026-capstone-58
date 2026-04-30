@@ -9,11 +9,13 @@ Google Gemini API와 YouTube Data API v3를 연동하여 채널 스타일을 분
 
 - **Java 17**
 - **Spring Boot 4.0.3**
-- **Google Gemini API** (gemini-2.0-flash-lite-preview) — 주제 추천 및 기획안 생성
+- **Spring Security + OAuth2 Client** — Google OAuth2 로그인 + JWT 인증
+- **Google Gemini API** (gemini-3.1-flash-lite-preview) — 주제 추천 및 기획안 생성
 - **Google Imagen 4** — AI 썸네일 이미지 생성
 - **YouTube Data API v3** — 채널 정보 및 최신 영상 수집
-- **AWS Bedrock (Claude Sonnet 4 Vision)** — 채널 썸네일 스타일 분석
+- **AWS Bedrock (Claude Sonnet 4 Vision)** — 채널 썸네일 스타일 분석 + 채널 성장 가이드 생성
 - **AWS S3** — 생성된 썸네일 이미지 저장
+- **MySQL** — 데이터 저장 (JPA/Hibernate)
 - **SpringDoc OpenAPI (Swagger UI)**
 - **Lombok**
 - **Gradle**
@@ -25,25 +27,38 @@ Google Gemini API와 YouTube Data API v3를 연동하여 채널 스타일을 분
 ### 사전 요구사항
 
 - Java 17+
+- MySQL
 - Google Gemini API 키
 - YouTube Data API v3 키
+- Google OAuth2 Client ID/Secret (로그인 기능)
 - AWS 계정 및 Bedrock 접근 권한 (EC2 IAM Role 또는 AWS CLI 설정)
 - AWS S3 버킷
 - GCP 서비스 계정 키 (Imagen 사용)
 
 ### 환경 설정
 
-`src/main/resources/application.properties`에 아래 값을 설정합니다.
+환경 변수 또는 `application-secret.yml`로 설정합니다. `.env.example` 파일을 참고하세요.
 
 ```properties
-gemini.api.key=YOUR_GEMINI_API_KEY
-aws.region=us-east-1
-aws.bedrock.model-id=anthropic.claude-3-haiku-20240307-v1:0
-aws.s3.bucket=YOUR_S3_BUCKET_NAME
-gcp.key-path=/path/to/gcp-key.json
+# Google APIs
+GEMINI_API_KEY=your_gemini_api_key
+YOUTUBE_API_KEY=your_youtube_api_key
+
+# AWS
+AWS_REGION=us-east-1
+AWS_BEDROCK_MODEL_ID=anthropic.claude-3-haiku-20240307-v1:0
+AWS_S3_BUCKET=your-s3-bucket-name
+
+# GCP (Imagen)
+GCP_KEY_PATH=./gcp-key/gcp-key.json
+
+# Database
+SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3306/crit?useSSL=false&serverTimezone=Asia/Seoul
+SPRING_DATASOURCE_USERNAME=root
+SPRING_DATASOURCE_PASSWORD=your_password
 ```
 
-> ⚠️ YouTube API Key는 현재 `YoutubeAPIService.java`에 하드코딩되어 있습니다. 추후 환경 변수로 분리가 필요합니다.
+OAuth2 client-id/secret, JWT secret 등은 `src/main/resources/application-secret.yml`에 설정합니다.
 
 ### 실행
 
@@ -186,19 +201,17 @@ Content-Type: application/json
 
 ### 2. 채널 분석
 
-채널 ID로 유튜브 채널을 분석합니다. 30일 캐싱 적용.
+유튜브 채널을 분석합니다. 채널 ID, @handle, 채널 URL 모두 지원합니다. 30일 캐싱 적용.
 
 ```
-GET /analyze/channel?channelId={channelId}
+GET /analyze/channel?channel={channel}
 ```
 
 #### Request Params
 
 | 필드 | 타입 | 설명 | 예시 |
 |------|------|------|------|
-| `channelId` | String | 유튜브 채널 ID | `UCSLrpBAzr-ROVGHQ5EmxnUg` |
-
-> 채널 ID 조회: `https://www.googleapis.com/youtube/v3/channels?part=id&forHandle={handle}&key={API_KEY}`
+| `channel` | String | 채널 ID, @handle, 또는 채널 URL | `UCSLrpBAzr-ROVGHQ5EmxnUg` 또는 `@codingapple` 또는 `https://youtube.com/@codingapple` |
 
 #### Response
 
@@ -439,21 +452,30 @@ src/main/java/com/capstone/crit/
 ├── controller/
 │   ├── MainController.java            # /ai_recommend, /ai_script 엔드포인트
 │   └── AnalyzeController.java         # /analyze/channel 엔드포인트
+├── security/
+│   ├── SecurityConfig.java            # Spring Security + CORS 설정
+│   ├── CustomOAuth2UserService.java   # Google OAuth2 로그인 처리
+│   ├── OAuth2SuccessHandler.java      # 로그인 성공 → YouTube 채널 수집 + JWT 발급
+│   ├── JwtTokenProvider.java          # JWT 생성/검증
+│   └── JwtAuthenticationFilter.java   # 요청별 JWT 인증 필터
 ├── service/
 │   ├── GeminiService.java             # Google Gemini API 연동
 │   ├── YoutubeAPIService.java         # YouTube Data API 연동
 │   ├── ChannelAnalyzeService.java     # 채널 분석 (캐싱 + 점수 계산 + 가이드 생성)
+│   ├── ImprovedScoringService.java    # 개선된 다층 점수 시스템
 │   ├── BedrockService.java            # AWS Bedrock Claude — 썸네일 분석 + 가이드 생성
 │   ├── ImagenService.java             # Google Imagen 4 — 썸네일 이미지 생성
 │   ├── S3Service.java                 # AWS S3 — 썸네일 이미지 업로드
 │   └── AIService.java                 # AI 서비스 인터페이스
 ├── entity/
+│   ├── User.java                      # 유저 (Google OAuth2 + YouTube 채널 정보)
 │   ├── ApiLog.java
 │   ├── RecommendLog.java
 │   ├── ScriptLog.java
 │   ├── ChannelCache.java              # 채널 캐시 (30일)
 │   └── VideoCache.java                # 영상 캐시 (30일)
 ├── repository/
+│   ├── UserRepository.java
 │   ├── ApiLogRepository.java
 │   ├── RecommendLogRepository.java
 │   ├── ScriptLogRepository.java
@@ -463,6 +485,7 @@ src/main/java/com/capstone/crit/
 │   └── RecommendForm.java
 ├── dto/
 │   └── TrendRequest.java
+├── CorsConfig.java
 └── SwaggerConfig.java
 ```
 
@@ -481,8 +504,6 @@ src/main/java/com/capstone/crit/
 ## ⚠️ 알려진 이슈 및 개선 예정
 
 - `/ai_script` 호출 시 `youtubeAPIService.getData()`가 중복 호출됨 → Redis 캐싱으로 개선 예정
-- YouTube API Key가 소스코드에 하드코딩되어 있음 → 환경 변수 분리 필요
-- Gemini 모델 ID `gemini-3.1-flash-lite-preview` → 최신 모델로 업데이트 필요
 
 ---
 
