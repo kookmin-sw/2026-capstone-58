@@ -1,0 +1,6 @@
+__pycache__/
+package/
+lambda-deploy.zip
+*.json
+!requirements.txt
+.env
