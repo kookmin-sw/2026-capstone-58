@@ -61,6 +61,74 @@ Swagger UI: `http://localhost:8080/swagger-ui.html`
 
 ---
 
+## 🚀 개선된 알고리즘 (Improved Scoring Algorithm)
+
+### 개요
+
+기존 알고리즘의 문제점을 해결하고 YouTube 성장을 원하는 사용자들을 위한 개선된 점수 계산 시스템입니다.
+
+**기존 알고리즘의 문제점**:
+- ❌ 대부분의 영상이 100점에 수렴 (점수 차별화 불가)
+- ❌ 채널 성장 단계 미반영
+- ❌ 실행 가능한 인사이트 부족
+
+**개선 사항**:
+- ✅ 다층 점수 시스템 (도달, 참여, 유지, 성장)
+- ✅ 채널 단계별 동적 가중치
+- ✅ 카테고리별 벤치마크
+- ✅ 시간 가중치 (최신 영상 우대)
+- ✅ 실행 가능한 인사이트 생성
+
+### 점수 구성
+
+```
+┌─────────────────────────────────────────┐
+│ 종합 성장 점수 (0~100)                  │
+├─────────────────────────────────────────┤
+│ 📈 도달 점수 (0~40): 조회수 평가        │
+│ 💬 참여 점수 (0~30): 시청자 반응 평가   │
+│ ⏱️  유지 점수 (0~20): 시청자 만족도     │
+│ 🚀 성장 점수 (0~10): 채널 성장 기여도   │
+└─────────────────────────────────────────┘
+```
+
+### 채널 단계별 가중치
+
+- **초기 채널** (0~1,000명): 참여도 40% > 도달 30%
+- **성장 채널** (1,000~10,000명): 도달 40% > 참여 30%
+- **성숙 채널** (10,000~100,000명): 도달 35% > 성장 30%
+- **대형 채널** (100,000명+): 성장 40% > 도달 30%
+
+### API 응답 예시
+
+```json
+{
+  "improvedVideoAnalysis": [
+    {
+      "videoId": "...",
+      "title": "영상 제목",
+      "growthScore": 27,
+      "reachScore": 33,
+      "engagementScore": 30,
+      "retentionScore": 20,
+      "growthImpactScore": 10,
+      "channelStage": "초기 채널",
+      "insights": [
+        "📌 조회수 개선 필요: SEO 최적화와 재생목록 활용을 고려하세요.",
+        "✅ 참여도 우수: 시청자와의 상호작용이 잘 이루어지고 있습니다."
+      ]
+    }
+  ]
+}
+```
+
+### 상세 문서
+
+- **[IMPROVED_ALGORITHM.md](docs/IMPROVED_ALGORITHM.md)** - 개선된 알고리즘 상세 설명
+- **[ALGORITHM_COMPARISON.md](docs/ALGORITHM_COMPARISON.md)** - 기존 vs 개선 비교
+
+---
+
 ## API
 
 ### 1. 유튜브 기반 주제 추천
@@ -116,7 +184,40 @@ Content-Type: application/json
 
 ---
 
-### 2. 영상 기획 및 제목 생성
+### 2. 채널 분석
+
+채널 ID로 유튜브 채널을 분석합니다. 30일 캐싱 적용.
+
+```
+GET /analyze/channel?channelId={channelId}
+```
+
+#### Request Params
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| `channelId` | String | 유튜브 채널 ID | `UCSLrpBAzr-ROVGHQ5EmxnUg` |
+
+> 채널 ID 조회: `https://www.googleapis.com/youtube/v3/channels?part=id&forHandle={handle}&key={API_KEY}`
+
+#### Response
+
+| 필드 | 설명 |
+|------|------|
+| `channel.name` | 채널명 |
+| `channel.subscriberCount` | 구독자 수 |
+| `channel.profileImageUrl` | 프로필 이미지 URL |
+| `algorithmScore` | 채널 알고리즘 점수 (0~100) |
+| `summary.avgViewCount` | 평균 조회수 |
+| `summary.uploadFrequencyPerWeek` | 주 업로드 빈도 |
+| `summary.avgWatchDurationSeconds` | 평균 시청 지속 시간 (Analytics API 연동 전 null) |
+| `summary.subscriberGrowthRate` | 구독자 성장률 (%) |
+| `guides` | AI 생성 채널 방향 가이드 (title + description) |
+| `recentVideos` | 최신 영상 10개 (videoId, title, thumbnailUrl, algorithmScore) |
+
+---
+
+### 3. 영상 기획 및 제목 생성
 
 채널 최신 영상을 직접 분석하여 발화자 말투와 스타일을 반영한 기획안과 추천 제목을 생성합니다.
 또한 기획안과 유사한 영상 3개와 유사한 유튜버 2명을 자동으로 검색하여 제공합니다.
@@ -267,31 +368,102 @@ Content-Type: application/json
 
 ---
 
+## DB 구조 (채널 분석 캐시)
+
+### channel_cache
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| `id` | BIGINT | PK |
+| `channel_id` | VARCHAR | 유튜브 채널 ID (unique) |
+| `channel_name` | VARCHAR | 채널명 |
+| `profile_image_url` | VARCHAR | 프로필 이미지 URL |
+| `subscriber_count` | BIGINT | 현재 구독자 수 |
+| `previous_subscriber_count` | BIGINT | 이전 캐시 시점 구독자 수 (성장률 계산용) |
+| `total_video_count` | BIGINT | 전체 영상 수 |
+| `avg_view_count` | DOUBLE | 평균 조회수 |
+| `upload_frequency_per_week` | DOUBLE | 주 업로드 빈도 |
+| `avg_watch_duration_seconds` | DOUBLE | 평균 시청 지속 시간 (Analytics API 연동 전 null) |
+| `guides_json` | TEXT | AI 생성 가이드 JSON 문자열 |
+| `fetched_at` | DATETIME | 수집 시각 (캐시 만료 기준) |
+
+### video_cache
+
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| `id` | BIGINT | PK |
+| `channel_id` | VARCHAR | 유튜브 채널 ID |
+| `video_id` | VARCHAR | 유튜브 영상 ID |
+| `title` | VARCHAR | 영상 제목 |
+| `thumbnail_url` | VARCHAR | 썸네일 URL |
+| `view_count` | BIGINT | 조회수 |
+| `like_count` | BIGINT | 좋아요 수 |
+| `comment_count` | BIGINT | 댓글 수 |
+| `duration_seconds` | BIGINT | 영상 길이 (초) |
+| `algorithm_score` | INT | 알고리즘 점수 (0~100) |
+| `video_rank` | INT | 최신순 순위 (1~10) |
+| `fetched_at` | DATETIME | 수집 시각 (캐시 만료 기준) |
+
+> 테이블은 `spring.jpa.hibernate.ddl-auto=update` 설정으로 서버 시작 시 자동 생성/변경됩니다.
+
+---
+
+## YouTube API 사용량
+
+YouTube Data API는 하루 **10,000 유닛** 무료 할당량이 있습니다.
+
+### 캐시 미스 (최초 조회 or 30일 만료 시)
+
+| API 호출 | 방식 | 유닛 |
+|---------|------|------|
+| 채널 정보 조회 (`channels?part=snippet,statistics`) | - | 3 유닛 |
+| 최신 영상 ID 조회 (`playlistItems`) | UC→UU 변환 | 1 유닛 |
+| 영상 상세 조회 (`videos?part=snippet,statistics,contentDetails`) | - | 3 유닛 |
+| **합계** | | **7 유닛 / 1회** |
+
+### 캐시 히트 (30일 이내 재조회 시)
+
+| 항목 | 유닛 |
+|------|------|
+| YouTube API 호출 | **0 유닛** |
+| Bedrock 호출 | 없음 (guidesJson 캐시) |
+
+> 하루 10,000 유닛 기준으로 캐시 미스 시 약 **1,428회** 채널 분석 가능
+
+---
+
 ## 프로젝트 구조
 
 ```
 src/main/java/com/capstone/crit/
 ├── controller/
-│   └── MainController.java            # /ai_recommend, /ai_script 엔드포인트
+│   ├── MainController.java            # /ai_recommend, /ai_script 엔드포인트
+│   └── AnalyzeController.java         # /analyze/channel 엔드포인트
 ├── service/
 │   ├── GeminiService.java             # Google Gemini API 연동
-│   │   ├── recommendTopic()           # 주제 추천 (3개)
-│   │   └── writeScript()              # 기획안 + 제목 5개 + 썸네일 가이드 생성
 │   ├── YoutubeAPIService.java         # YouTube Data API 연동
-│   │   ├── getData()                  # 채널 정보 수집
-│   │   ├── getLatestVideoUrl()        # 최신 영상 URL 추출
-│   │   ├── getRecentThumbnailImages() # 최신 썸네일 3개 다운로드
-│   │   ├── getSimilarVideos()         # 유사 영상 3개 검색 ⭐ NEW
-│   │   └── getSimilarCreators()       # 유사 유튜버 2명 검색 ⭐ NEW
-│   ├── BedrockService.java            # AWS Bedrock Claude Vision — 썸네일 스타일 분석
+│   ├── ChannelAnalyzeService.java     # 채널 분석 (캐싱 + 점수 계산 + 가이드 생성)
+│   ├── BedrockService.java            # AWS Bedrock Claude — 썸네일 분석 + 가이드 생성
 │   ├── ImagenService.java             # Google Imagen 4 — 썸네일 이미지 생성
 │   ├── S3Service.java                 # AWS S3 — 썸네일 이미지 업로드
 │   └── AIService.java                 # AI 서비스 인터페이스
+├── entity/
+│   ├── ApiLog.java
+│   ├── RecommendLog.java
+│   ├── ScriptLog.java
+│   ├── ChannelCache.java              # 채널 캐시 (30일)
+│   └── VideoCache.java                # 영상 캐시 (30일)
+├── repository/
+│   ├── ApiLogRepository.java
+│   ├── RecommendLogRepository.java
+│   ├── ScriptLogRepository.java
+│   ├── ChannelCacheRepository.java
+│   └── VideoCacheRepository.java
 ├── form/
-│   └── RecommendForm.java             # 채널 정보 객체
+│   └── RecommendForm.java
 ├── dto/
 │   └── TrendRequest.java
-└── SwaggerConfig.java                 # Swagger 설정
+└── SwaggerConfig.java
 ```
 
 ### RecommendForm 필드
@@ -315,6 +487,47 @@ src/main/java/com/capstone/crit/
 ---
 
 ## 변경 이력
+
+### 2026-04-24
+- **개선된 YouTube 성장 중심 알고리즘 추가**
+  - `ImprovedScoringService` 추가: 다층 점수 시스템 구현
+    - 도달 점수 (0~40): 로그 스케일 조회수 평가
+    - 참여 점수 (0~30): 카테고리별 벤치마크 기반 상대 참여도 평가
+    - 유지 점수 (0~20): 댓글/좋아요 비율로 시청자 만족도 추정
+    - 성장 점수 (0~10): 채널 성장에 대한 영상의 기여도 평가
+  - 채널 단계별 동적 가중치 적용
+    - 초기 채널 (0~1,000명): 참여도 40% 중심
+    - 성장 채널 (1,000~10,000명): 도달 40% 중심
+    - 성숙 채널 (10,000~100,000명): 성장 30% 중심
+    - 대형 채널 (100,000명+): 성장 40% 중심
+  - 카테고리별 벤치마크 (교육, 엔터테인먼트, 게임, 뷰티, 음악, 기술, 일상)
+  - 시간 가중치: 최신 영상에 1.0~1.3배 가중치 부여
+  - 실행 가능한 인사이트 자동 생성
+  - `ChannelAnalyzeService` 수정: `improvedVideoAnalysis` 필드 추가
+    - 각 영상별 상세 점수 및 인사이트 제공
+  - 문서 추가
+    - `docs/IMPROVED_ALGORITHM.md`: 알고리즘 상세 설명
+    - `docs/ALGORITHM_COMPARISON.md`: 기존 vs 개선 비교
+    - `docs/IMPLEMENTATION_GUIDE.md`: 구현 가이드
+  - README 업데이트: 개선된 알고리즘 섹션 추가
+
+### 2026-04-23
+- **채널 분석 페이지 API 추가** (`GET /analyze/channel`)
+  - `ChannelCache` 엔티티 추가: 채널 기본 정보 + 통계 (30일 캐싱)
+  - `VideoCache` 엔티티 추가: 최신 영상 10개 정보 + 알고리즘 점수 (30일 캐싱)
+  - `ChannelCacheRepository`, `VideoCacheRepository` 추가
+  - `ChannelAnalyzeService` 추가
+    - YouTube Data API로 채널/영상 데이터 수집
+    - 30일 캐싱 정책 적용 (재요청 시 DB에서 반환, 만료 시 YouTube API 재호출)
+    - 영상 알고리즘 점수 계산 (조회수 비율 + 인게이지먼트율 + 영상 길이 보너스)
+    - 구독자 성장률 계산 (이전 캐시 구독자 수 vs 현재 비교)
+    - Bedrock Claude로 채널 방향 가이드 AI 생성
+  - `AnalyzeController` 추가: `GET /analyze/channel?channelId=` 엔드포인트
+  - `BedrockService.invokeModelPublic()` 추가
+  - `application.properties`에 `youtube.api.key` 설정 추가
+  - AWS RDS MySQL 연동 (엔드포인트: `pj-kmucd1-08-db.cj24wem202yj.us-east-1.rds.amazonaws.com`)
+
+
 
 ### 2026-04-07
 - **유사 영상/유튜버 검색 API 호출 방식 개선**
