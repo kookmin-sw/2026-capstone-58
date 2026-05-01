@@ -7,26 +7,21 @@ import com.capstone.crit.form.RecommendForm;
 import com.capstone.crit.repository.ApiLogRepository;
 import com.capstone.crit.repository.RecommendLogRepository;
 import com.capstone.crit.repository.ScriptLogRepository;
-import com.capstone.crit.service.AIService;
-import com.capstone.crit.service.BedrockService;
-import com.capstone.crit.service.GeminiService;
-import com.capstone.crit.service.YoutubeAPIService;
+import com.capstone.crit.service.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletRequest;
-import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Slf4j
 public class MainController {
 

@@ -25,17 +25,7 @@ repositories {
 }
 
 dependencies {
-
-    //지수(유입률) 분석 툴 추가
-	// Spring Boot Actuator: 앱 내부 상태를 HTTP로 노출
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	// Micrometer Prometheus: Actuator 데이터를 Prometheus가 읽을 수 있는 형식으로 변환
-	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
-
-	//JPA 추가
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	runtimeOnly 'com.mysql:mysql-connector-j'
-
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa' // jpa추가
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'//swagger 추가
 
 	implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
@@ -49,13 +39,24 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-	// AWS Bedrock
+	// AWS Bedrock + S3
 	implementation platform('software.amazon.awssdk:bom:2.25.0')
 	implementation 'software.amazon.awssdk:bedrockruntime'
+	implementation 'software.amazon.awssdk:s3'
 	implementation 'software.amazon.awssdk:sts'
+
+	// Webflux (for Imagen)
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
 	// JSON
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+	// GCP JWT (for Imagen)
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+	
+	runtimeOnly 'com.mysql:mysql-connector-j'
 }
 
 tasks.named('test') {
