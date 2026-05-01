@@ -14,9 +14,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
 
 import java.io.IOException;
 
@@ -59,10 +62,19 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             log.info("accessToken 획득 완료, refreshToken: {}", refreshToken != null ? "있음" : "없음");
 
             String googleId = oauthToken.getName();
-            User user = userRepository.findByGoogleId(googleId).orElseThrow(
-                    () -> new IllegalStateException("DB에 유저 없음: " + googleId)
-            );
-            log.info("유저 조회 완료 - userId: {}", user.getId());
+            OAuth2User oAuth2User = oauthToken.getPrincipal();
+            Map<String, Object> attributes = oAuth2User.getAttributes();
+
+            User user = userRepository.findByGoogleId(googleId).orElseGet(() -> {
+                log.warn("CustomOAuth2UserService에서 저장 안 됨, SuccessHandler에서 생성: {}", googleId);
+                return userRepository.save(User.builder()
+                        .googleId(googleId)
+                        .email((String) attributes.get("email"))
+                        .name((String) attributes.get("name"))
+                        .profileImage((String) attributes.get("picture"))
+                        .build());
+            });
+            log.info("유저 조회/생성 완료 - userId: {}", user.getId());
 
             fetchAndSaveYoutubeInfo(user, accessToken);
 
@@ -77,7 +89,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         } catch (Exception e) {
             log.error("OAuth2 성공 핸들러 처리 중 오류", e);
-            response.sendRedirect(redirectUrl + "?error=server_error");
+            response.sendRedirect(redirectUrl + "?error=" + e.getClass().getSimpleName() + "&message=" + e.getMessage());
         }
     }
 
