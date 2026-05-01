@@ -1,3 +1,3 @@
 gemini:
   api:
-    key: AIzaSyDPzI5X-2XLsdGtuXHR3q39WHVm_9M9BJc  # 비워둠
+    key:  # application-secret.yml에서 주입
