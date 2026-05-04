@@ -78,31 +78,10 @@ public class ChannelAnalyzeService {
         ChannelCache channel = getOrFetchChannel(channelId);
         List<VideoCache> videos = getOrFetchVideos(channelId, channel);
 
-        int channelScore = calculateChannelScore(channel, videos);
         double growthRate = calculateGrowthRate(channel);
 
         // 가이드: DB에 저장된 게 없으면 생성 후 저장
         List<Map<String, String>> guides = getOrGenerateGuides(channel, videos);
-
-        // 개선된 알고리즘으로 각 영상의 성장 점수 계산
-        List<Map<String, Object>> improvedVideoScores = new ArrayList<>();
-        for (VideoCache video : videos) {
-            ImprovedScoringService.GrowthScoreResult scoreResult = improvedScoringService.calculateGrowthScore(
-                    video, channel, videos, "기타"
-            );
-            improvedVideoScores.add(Map.of(
-                    "videoId", video.getVideoId(),
-                    "title", video.getTitle(),
-                    "thumbnailUrl", video.getThumbnailUrl(),
-                    "growthScore", scoreResult.finalScore,
-                    "reachScore", scoreResult.reachScore,
-                    "engagementScore", scoreResult.engagementScore,
-                    "retentionScore", scoreResult.retentionScore,
-                    "growthImpactScore", scoreResult.growthImpactScore,
-                    "channelStage", scoreResult.channelStage,
-                    "insights", scoreResult.insights
-            ));
-        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("channel", Map.of(
@@ -111,22 +90,21 @@ public class ChannelAnalyzeService {
                 "profileImageUrl", channel.getProfileImageUrl(),
                 "subscriberCount", channel.getSubscriberCount()
         ));
-        result.put("algorithmScore", channelScore);
+        // channelScore는 백분위 계산 후 여기에 삽입 (아래에서 처리)
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("avgViewCount", channel.getAvgViewCount());
+        summary.put("avgViewCountChange", calcChangePercent(channel.getAvgViewCount(), channel.getPreviousAvgViewCount()));
         summary.put("uploadFrequencyPerWeek", channel.getUploadFrequencyPerWeek());
+        summary.put("uploadFrequencyChange", calcChangePercent(channel.getUploadFrequencyPerWeek(), channel.getPreviousUploadFrequencyPerWeek()));
         summary.put("avgWatchDurationSeconds", channel.getAvgWatchDurationSeconds());
-        summary.put("subscriberGrowthRate", growthRate);
+        summary.put("avgWatchDurationChange", null);
+        Long prevSubs = channel.getPreviousSubscriberCount();
+        Long currSubs = channel.getSubscriberCount();
+        summary.put("subscriberChange", prevSubs != null ? currSubs - prevSubs : null);
+        summary.put("subscriberChangePercent", prevSubs != null && prevSubs > 0 ?
+                Math.round((double)(currSubs - prevSubs) / prevSubs * 1000.0) / 10.0 : null);
         result.put("summary", summary);
         result.put("guides", guides);
-        result.put("recentVideos", videos.stream().map(v -> Map.of(
-                "videoId", v.getVideoId(),
-                "title", v.getTitle(),
-                "thumbnailUrl", v.getThumbnailUrl(),
-                "algorithmScore", v.getAlgorithmScore()
-        )).toList());
-        // 개선된 알고리즘 결과 추가
-        result.put("improvedVideoAnalysis", improvedVideoScores);
 
         // 백분위 기반 점수 계산
         List<Map<String, Object>> percentileVideoScores = new ArrayList<>();
@@ -146,6 +124,7 @@ public class ChannelAnalyzeService {
             entry.put("likeRateScore", sr.likeRateScore());
             entry.put("isShort", video.getDurationSeconds() < 60);
             entry.put("matched", sr.matched());
+            entry.put("reason", generateVideoReason(sr));
             percentileVideoScores.add(entry);
         }
         result.put("percentileVideoAnalysis", percentileVideoScores);
@@ -176,9 +155,15 @@ public class ChannelAnalyzeService {
                 Map.of("name", "시청자 반응", "score", avgEng, "weight", 25, "description", "좋아요+댓글 비율"),
                 Map.of("name", "콘텐츠 만족도", "score", avgLr, "weight", 15, "description", "좋아요 비율")
         ));
-        result.put("channelScore", channelScoreMap);
 
-        return result;
+        // channelScore를 channel 바로 다음에 삽입
+        Map<String, Object> ordered = new LinkedHashMap<>();
+        ordered.put("channel", result.get("channel"));
+        ordered.put("channelScore", channelScoreMap);
+        result.remove("channel");
+        result.forEach(ordered::put);
+
+        return ordered;
     }
 
     private ChannelCache getOrFetchChannel(String channelId) {
@@ -188,7 +173,23 @@ public class ChannelAnalyzeService {
         }
 
         Long previousSubscriberCount = cached.map(ChannelCache::getSubscriberCount).orElse(null);
+        Double previousAvgViewCount = cached.map(ChannelCache::getAvgViewCount).orElse(null);
+        Double previousUploadFreq = cached.map(ChannelCache::getUploadFrequencyPerWeek).orElse(null);
         ChannelCache fresh = fetchChannelFromYoutube(channelId, previousSubscriberCount);
+        fresh = ChannelCache.builder()
+                .channelId(fresh.getChannelId())
+                .channelName(fresh.getChannelName())
+                .profileImageUrl(fresh.getProfileImageUrl())
+                .subscriberCount(fresh.getSubscriberCount())
+                .previousSubscriberCount(previousSubscriberCount)
+                .totalVideoCount(fresh.getTotalVideoCount())
+                .avgViewCount(fresh.getAvgViewCount())
+                .previousAvgViewCount(previousAvgViewCount)
+                .uploadFrequencyPerWeek(fresh.getUploadFrequencyPerWeek())
+                .previousUploadFrequencyPerWeek(previousUploadFreq)
+                .avgWatchDurationSeconds(fresh.getAvgWatchDurationSeconds())
+                .fetchedAt(fresh.getFetchedAt())
+                .build();
         cached.ifPresent(c -> channelCacheRepository.deleteById(c.getId()));
         return channelCacheRepository.save(fresh);
     }
@@ -349,32 +350,80 @@ public class ChannelAnalyzeService {
         }
     }
 
-    // AI 코멘트 생성 (이전 점수 비교)
+    // 변화율 계산 (%)
+    private Double calcChangePercent(Double current, Double previous) {
+        if (current == null || previous == null || previous == 0) return null;
+        return Math.round((current - previous) / previous * 1000.0) / 10.0;
+    }
+
+    // 영상별 점수 이유 생성 (템플릿)
+    private String generateVideoReason(PercentileScoringService.ScoreResult sr) {
+        int vps = sr.vpsScore(), eng = sr.engagementScore(), lr = sr.likeRateScore();
+
+        String strongName, weakName;
+        int strongScore, weakScore;
+
+        if (vps >= eng && vps >= lr) { strongName = "도달력"; strongScore = vps; }
+        else if (eng >= lr) { strongName = "시청자 반응"; strongScore = eng; }
+        else { strongName = "콘텐츠 만족도"; strongScore = lr; }
+
+        if (vps <= eng && vps <= lr) { weakName = "도달력"; weakScore = vps; }
+        else if (eng <= lr) { weakName = "시청자 반응"; weakScore = eng; }
+        else { weakName = "콘텐츠 만족도"; weakScore = lr; }
+
+        String strongPart = String.format("%s이(가) 상위 %d%%로 뛰어나요.", strongName, 100 - strongScore);
+        String weakPart = weakScore < 50 ?
+                String.format("%s을(를) 개선하면 점수가 올라갈 수 있어요.", weakName) :
+                String.format("전반적으로 균형 잡힌 성과를 보이고 있어요.");
+
+        return strongPart + " " + weakPart;
+    }
+
+    // AI 코멘트 생성 (이전 점수 비교 + Bedrock 조언)
     private String generateScoreComment(ChannelCache channel, int currentTotal, int avgVps, int avgEng, int avgLr) {
         Integer prevScore = channel.getPercentileScore();
         int topPercent = 100 - currentTotal;
 
-        // 강점/약점 판단
-        String strong = avgVps >= avgEng && avgVps >= avgLr ? "도달력" :
-                         avgEng >= avgLr ? "시청자 반응" : "콘텐츠 만족도";
-        String weak = avgVps <= avgEng && avgVps <= avgLr ? "도달력" :
-                       avgEng <= avgLr ? "시청자 반응" : "콘텐츠 만족도";
-
+        // 1줄: 데이터 기반 템플릿
+        String line1;
         if (prevScore != null) {
             int diff = currentTotal - prevScore;
             if (diff > 0) {
-                return String.format("상위 %d%%에 위치한 채널이에요! 지난 분석 대비 %d점 상승했어요. %s이(가) 강점이에요!",
-                        topPercent, diff, strong);
+                line1 = String.format("상위 %d%%에 위치한 채널이에요! 지난 분석 대비 %d점 상승했어요.", topPercent, diff);
             } else if (diff < 0) {
-                return String.format("상위 %d%%에 위치한 채널이에요. 지난 분석 대비 %d점 하락했어요. %s을(를) 개선하면 회복할 수 있어요!",
-                        topPercent, Math.abs(diff), weak);
+                line1 = String.format("상위 %d%%에 위치한 채널이에요. 지난 분석 대비 %d점 하락했어요.", topPercent, Math.abs(diff));
             } else {
-                return String.format("상위 %d%%에 위치한 채널이에요! 점수가 유지되고 있어요. %s이(가) 강점이에요!",
-                        topPercent, strong);
+                line1 = String.format("상위 %d%%에 위치한 채널이에요! 점수가 유지되고 있어요.", topPercent);
             }
+        } else {
+            line1 = String.format("상위 %d%%에 위치한 채널이에요!", topPercent);
         }
-        return String.format("상위 %d%%에 위치한 채널이에요! %s이(가) 강점이고, %s을(를) 높이면 더 성장할 수 있어요.",
-                topPercent, strong, weak);
+
+        // 2줄: AI 생성 조언
+        String line2;
+        try {
+            String strong = avgVps >= avgEng && avgVps >= avgLr ? "도달력" :
+                            avgEng >= avgLr ? "시청자 반응" : "콘텐츠 만족도";
+            String weak = avgVps <= avgEng && avgVps <= avgLr ? "도달력" :
+                          avgEng <= avgLr ? "시청자 반응" : "콘텐츠 만족도";
+
+            String prompt = String.format(
+                    "유튜브 채널 성장 조언을 1문장으로 해주세요. 반드시 1문장만 답변하세요.\n" +
+                    "채널: %s (구독자 %d명)\n" +
+                    "점수: 도달력 %d점, 시청자반응 %d점, 콘텐츠만족도 %d점 (각 100점 만점)\n" +
+                    "강점: %s / 약점: %s\n" +
+                    "약점을 개선하기 위한 구체적인 행동 조언을 해주세요.",
+                    channel.getChannelName(), channel.getSubscriberCount(),
+                    avgVps, avgEng, avgLr, strong, weak);
+            line2 = bedrockService.invokeModelPublic(prompt).trim();
+        } catch (Exception e) {
+            log.warn("AI 코멘트 생성 실패: {}", e.getMessage());
+            String weak = avgVps <= avgEng && avgVps <= avgLr ? "도달력" :
+                          avgEng <= avgLr ? "시청자 반응" : "콘텐츠 만족도";
+            line2 = String.format("%s을(를) 높이면 더 성장할 수 있어요!", weak);
+        }
+
+        return line1 + " " + line2;
     }
 
     // 구독자 성장률: (현재 - 이전) / 이전 * 100
@@ -388,20 +437,34 @@ public class ChannelAnalyzeService {
     // Bedrock으로 채널 방향 가이드 생성
     private List<Map<String, String>> generateGuides(ChannelCache channel, List<VideoCache> videos) {
         try {
+            // 평균 영상 길이 계산
+            double avgDuration = videos.stream().mapToLong(VideoCache::getDurationSeconds).average().orElse(0);
+            String avgDurStr = avgDuration < 60 ? String.format("%.0f초", avgDuration) :
+                               String.format("%.0f분", avgDuration / 60);
+
             String prompt = String.format(
-                    "당신은 유튜브 채널 성장 전문가입니다.\n" +
+                    "당신은 유튜브 채널 성장 전문가입니다. 반드시 정확히 3개의 가이드를 제시하세요.\n" +
                     "채널 정보:\n" +
+                    "- 채널명: %s\n" +
                     "- 구독자 수: %d명\n" +
                     "- 주 업로드 빈도: %.1f회\n" +
                     "- 평균 조회수: %.0f회\n" +
-                    "- 최근 영상 수: %d개\n\n" +
-                    "위 데이터를 바탕으로 채널 성장을 위한 구체적인 가이드를 2~3개 제시해주세요.\n" +
-                    "반드시 아래 JSON 배열 형식으로만 답변하세요. 다른 텍스트는 포함하지 마세요.\n" +
+                    "- 평균 영상 길이: %s\n" +
+                    "- 최근 영상 수: %d개\n" +
+                    "- 점수: 도달력 %d점, 시청자반응 %d점, 콘텐츠만족도 %d점 (각 100점 만점)\n\n" +
+                    "각 가이드는 구체적인 수치와 행동을 포함해야 합니다.\n" +
+                    "예시: {\"title\": \"업로드 주기 늘리기\", \"description\": \"주 2회 업로드 시 성장률이 20%% 높아져요!\"}\n" +
+                    "반드시 아래 JSON 배열 형식으로만 답변하세요. 정확히 3개. 다른 텍스트는 포함하지 마세요.\n" +
                     "[{\"title\": \"가이드 제목\", \"description\": \"구체적인 설명\"}]",
+                    channel.getChannelName(),
                     channel.getSubscriberCount(),
                     channel.getUploadFrequencyPerWeek(),
                     channel.getAvgViewCount(),
-                    videos.size()
+                    avgDurStr,
+                    videos.size(),
+                    channel.getPercentileVps() != null ? channel.getPercentileVps() : 50,
+                    channel.getPercentileEngagement() != null ? channel.getPercentileEngagement() : 50,
+                    channel.getPercentileLikeRate() != null ? channel.getPercentileLikeRate() : 50
             );
 
             String raw = bedrockService.invokeModelPublic(prompt);

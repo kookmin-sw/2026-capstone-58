@@ -49,3 +49,4 @@ gcp-key/
 .env
 .env.local
 .env.*.local
+image-gen-key.json

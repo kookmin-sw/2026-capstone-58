@@ -37,6 +37,10 @@ public class ChannelCache {
     private Integer percentileEngagement;
     private Integer percentileLikeRate;
 
+    // 이전 분석 값 (변화율 계산용)
+    private Double previousAvgViewCount;
+    private Double previousUploadFrequencyPerWeek;
+
     @Column(nullable = false)
     private LocalDateTime fetchedAt;
 }
