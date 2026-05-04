@@ -252,6 +252,8 @@ def lambda_handler(event, context):
     if category_ids is None:
         category_ids = list(CATEGORIES.keys())
 
+    force = event.get("force", False) if event and isinstance(event, dict) else False
+
     existing = load_existing_from_s3()
     cat_timestamps = existing.get("category_timestamps", {})
     now = datetime.now(timezone.utc)
@@ -260,13 +262,14 @@ def lambda_handler(event, context):
     fresh = []
     skipped = []
     for cat_id in category_ids:
-        ts = cat_timestamps.get(cat_id)
-        if ts:
-            collected = datetime.fromisoformat(ts)
-            age = (now - collected).days
-            if age < stale_days:
-                skipped.append(cat_id)
-                continue
+        if not force:
+            ts = cat_timestamps.get(cat_id)
+            if ts:
+                collected = datetime.fromisoformat(ts)
+                age = (now - collected).days
+                if age < stale_days:
+                    skipped.append(cat_id)
+                    continue
         fresh.append(cat_id)
 
     if not fresh:
