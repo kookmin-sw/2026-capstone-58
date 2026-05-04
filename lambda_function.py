@@ -184,18 +184,40 @@ def build_percentile_tables(videos):
     return tables
 
 
-# ── S3 저장 ───────────────────────────────────────────────────────
+# ── S3 저장 (기존 데이터 병합) ─────────────────────────────────────
 
-def save_to_s3(tables, cat_stats, total_channels, total_videos, categories):
+def load_existing_from_s3():
+    """S3에서 기존 latest.json 로드. 없으면 빈 구조 반환."""
+    try:
+        obj = s3.get_object(Bucket=S3_BUCKET, Key="latest.json")
+        return json.loads(obj["Body"].read())
+    except Exception:
+        return {"collected_at": None, "total_channels": 0, "total_videos": 0, "groups": 0, "tables": {}, "category_timestamps": {}}
+
+
+def save_to_s3(new_tables, cat_stats, total_channels, total_videos, categories):
     today = datetime.now(timezone.utc).strftime("%Y%m%d")
     now = datetime.now(timezone.utc).isoformat()
 
+    # 기존 데이터 로드
+    existing = load_existing_from_s3()
+    merged_tables = existing.get("tables", {})
+    cat_timestamps = existing.get("category_timestamps", {})
+
+    # 새 테이블 병합 (같은 키는 덮어쓰기)
+    merged_tables.update(new_tables)
+
+    # 수집한 카테고리의 타임스탬프 갱신
+    for cat_id in categories:
+        cat_timestamps[cat_id] = now
+
     percentile_data = {
         "collected_at": now,
-        "total_channels": total_channels,
-        "total_videos": total_videos,
-        "groups": len(tables),
-        "tables": tables,
+        "total_channels": existing.get("total_channels", 0) + total_channels,
+        "total_videos": existing.get("total_videos", 0) + total_videos,
+        "groups": len(merged_tables),
+        "tables": merged_tables,
+        "category_timestamps": cat_timestamps,
     }
 
     summary_data = {
@@ -226,7 +248,34 @@ def lambda_handler(event, context):
     if event and isinstance(event, dict):
         category_ids = event.get("categories")
 
-    videos, total_channels, categories, cat_stats = collect_all_categories(category_ids)
+    # 전체 카테고리 요청 시, 7일 이내 수집된 카테고리는 스킵
+    if category_ids is None:
+        category_ids = list(CATEGORIES.keys())
+
+    existing = load_existing_from_s3()
+    cat_timestamps = existing.get("category_timestamps", {})
+    now = datetime.now(timezone.utc)
+    stale_days = 7
+
+    fresh = []
+    skipped = []
+    for cat_id in category_ids:
+        ts = cat_timestamps.get(cat_id)
+        if ts:
+            collected = datetime.fromisoformat(ts)
+            age = (now - collected).days
+            if age < stale_days:
+                skipped.append(cat_id)
+                continue
+        fresh.append(cat_id)
+
+    if not fresh:
+        return {"statusCode": 200, "body": json.dumps({
+            "message": "All categories are fresh (< 7 days)",
+            "skipped": skipped,
+        })}
+
+    videos, total_channels, categories, cat_stats = collect_all_categories(fresh)
 
     if not videos:
         return {"statusCode": 200, "body": json.dumps({"message": "No videos collected"})}
@@ -239,6 +288,7 @@ def lambda_handler(event, context):
         "channels": total_channels,
         "videos": len(videos),
         "categories": categories,
+        "skipped": skipped,
         "groups": len(tables),
         "s3_files": saved,
     }
