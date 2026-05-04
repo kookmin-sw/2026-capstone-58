@@ -175,3 +175,18 @@
 .animate-fade-in-up {
   animation: fadeInUp 0.6s ease-out both;
 }
+
+/* Loading pulse animation */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-loading-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}

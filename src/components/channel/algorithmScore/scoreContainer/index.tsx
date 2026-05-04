@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import GraphIcon from '@/assets/icons/score-icons/graph-icon.svg?react';
 import TimerIcon from '@/assets/icons/score-icons/timer-icon.svg?react';
 import CameraIcon from '@/assets/icons/score-icons/camera-icon.svg?react';
@@ -15,9 +16,18 @@ interface ScoreContainerProps {
   label: string;
   score: number;
   maxScore?: number;
+  weight?: number;
+  description?: string;
 }
 
-const ScoreContainer = ({ label, score, maxScore = 100 }: ScoreContainerProps) => {
+const ScoreContainer = ({
+  label,
+  score,
+  maxScore = 100,
+  weight,
+  description,
+}: ScoreContainerProps) => {
+  const [hovered, setHovered] = useState(false);
   const percent = Math.min((score / maxScore) * 100, 100);
   const Icon = iconMap[label];
   const { fill, track } = getScoreColors(score);
@@ -25,8 +35,18 @@ const ScoreContainer = ({ label, score, maxScore = 100 }: ScoreContainerProps) =
   return (
     <div className="flex items-center gap-3 self-stretch">
       {Icon && <Icon className="w-6.5 h-6.5 shrink-0" />}
-      <div className="flex w-22 shrink-0 text-sm font-medium leading-[140%] -tracking-wide text-black">
+      <div
+        className="relative flex w-22 shrink-0 text-sm font-medium leading-[140%] -tracking-wide text-black cursor-default"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
         {label}
+        {hovered && (weight !== undefined || description) && (
+          <div className="absolute -top-14 left-0 px-3 py-2 rounded-lg bg-[#A594F9]/90 text-white text-xs font-medium whitespace-nowrap z-10 transition-all duration-200">
+            {description && <div>{description}</div>}
+            {weight !== undefined && <div>가중치: {weight}</div>}
+          </div>
+        )}
       </div>
       <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: track }}>
         <div

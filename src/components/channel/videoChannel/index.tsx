@@ -1,6 +1,10 @@
 import VideoItem from './videoItem';
+import useChannelStore from '@/stores/useChannelStore';
 
-const videoChannel = () => {
+const VideoChannel = () => {
+  const data = useChannelStore(s => s.data);
+  const videos = data?.percentileVideoAnalysis ?? [];
+
   return (
     <div className="flex flex-col w-full justify-center items-center">
       <div className="flex w-full justify-start">
@@ -13,35 +17,25 @@ const videoChannel = () => {
       </div>
       <div className="flex w-full h-266 px-6 py-11 justify-center items-center rounded-tr-xl rounded-b-xl bg-[#F5EFFF]">
         <div className="flex flex-col w-full h-full overflow-y-auto gap-7.5 pr-4 script-scroll">
-          <VideoItem
-            title="외국 프로 선수에게 보여준 K-티모 맛"
-            score={92}
-            description="CTR 95점, 시청 지속 시간 88점, 추천 확장성 92점"
-          />
-          <VideoItem
-            title="외국 프로 선수에게 보여준 K-티모 맛"
-            score={32}
-            description="CTR 95점, 시청 지속 시간 88점, 추천 확장성 92점"
-          />
-          <VideoItem
-            title="외국 프로 선수에게 보여준 K-티모 맛"
-            score={2}
-            description="CTR 95점, 시청 지속 시간 88점, 추천 확장성 92점"
-          />
-          <VideoItem
-            title="외국 프로 선수에게 보여준 K-티모 맛"
-            score={92}
-            description="CTR 95점, 시청 지속 시간 88점, 추천 확장성 92점"
-          />
-          <VideoItem
-            title="외국 프로 선수에게 보여준 K-티모 맛"
-            score={92}
-            description="CTR 95점, 시청 지속 시간 88점, 추천 확장성 92점"
-          />
+          {videos.length > 0 ? (
+            videos.map((v, i) => (
+              <VideoItem
+                key={i}
+                title={v.title}
+                thumbnailUrl={v.thumbnailUrl}
+                score={v.percentileScore}
+                description={v.reason}
+              />
+            ))
+          ) : (
+            <div className="flex w-full h-full items-center justify-center text-gray-400 typo-body2 animate-loading-pulse">
+              영상 데이터를 불러오는 중입니다...
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default videoChannel;
+export default VideoChannel;

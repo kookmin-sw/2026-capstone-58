@@ -1,33 +1,29 @@
 import SpeechBubbleIcon from '@/assets/icons/score-icons/speech-bubble-icon.svg?react';
 import GuideItem from './guideItem';
-
-const defaultGuides = [
-  { comment: '업로드 주기 늘리기', subcomment: '주 2회 업로드 시 성장률이 20% 높아져요!' },
-  {
-    comment: '총 영상 시간 늘리기',
-    subcomment:
-      '동일 카테고리 영상 대비 영상시간이 길어요\n너무 긴 영상은 시청 유지율을 떨어뜨려요',
-  },
-  {
-    comment: '총 영상 시간 늘리기',
-    subcomment:
-      '동일 카테고리 영상 대비 영상시간이 길어요\n너무 긴 영상은 시청 유지율을 떨어뜨려요',
-  },
-];
+import useChannelStore from '@/stores/useChannelStore';
 
 const GuideChannel = () => {
+  const data = useChannelStore(s => s.data);
+  const guides = data?.guides ?? [];
+
   return (
-    <div className="flex flex-col w-full px-7 py-6 gap-4 justify-center items-center rounded-xl border border-[#8257B4]">
+    <div className="flex flex-col w-full px-7 py-6 gap-4 justify-center items-center rounded-xl border border-[#A594F9]">
       <div className="flex w-full gap-2 px-1.5 justify-start items-center">
         <SpeechBubbleIcon className="w-7 h-7" />
         <div className="flex w-full text-black typo-title1">
-          이렇게 해보세요! name님 맞춤 CRiT 가이드
+          이렇게 해보세요! {data?.channel?.name ?? 'name'}님 맞춤 CRiT 가이드
         </div>
       </div>
       <div className="flex w-full gap-8 justify-center items-center">
-        {defaultGuides.map((guide, i) => (
-          <GuideItem key={i} comment={guide.comment} subcomment={guide.subcomment} />
-        ))}
+        {guides.length > 0 ? (
+          guides.map((guide, i) => (
+            <GuideItem key={i} comment={guide.title} subcomment={guide.description} />
+          ))
+        ) : (
+          <div className="text-sm text-gray-400 py-4 animate-loading-pulse">
+            가이드 준비 중입니다...
+          </div>
+        )}
       </div>
     </div>
   );

@@ -44,7 +44,7 @@ const SummaryContainer = ({ label, value, changePercent }: SummaryContainerProps
   const Icon = iconMap[label];
 
   return (
-    <div className="flex w-56 h-25 px-4 py-4.5 gap-4 rounded-xl bg-[#F5EFFF]">
+    <div className="flex w-full h-full px-4 py-4.5 gap-4 rounded-xl bg-[#F5EFFF]">
       <div className="flex flex-col items-center justify-start">
         {Icon && <Icon className="w-8 h-8" />}
       </div>
@@ -56,10 +56,14 @@ const SummaryContainer = ({ label, value, changePercent }: SummaryContainerProps
           <div className="text-black text-xl font-semibold leading-[140%] tracking-wide">
             {formatValue(label, value)}
           </div>
-          <div className="flex px-2 py-1 w-13 gap-0.5 justify-center items-center rounded-xl bg-[#E9D3F8]">
-            {isUp && <TriangleIcon className="w-3 h-3 text-[#FF0000]" />}
-            {isDown && <TriangleIcon className="w-3 h-3 text-[#0038FF] rotate-180" />}
-            <div className="text-xs font-semibold text-black">
+          <div
+            className={`flex px-2 py-1 w-13 gap-0.5 justify-center items-center rounded-xl ${isUp ? 'bg-[#5AC467B3]' : isDown ? 'bg-[#FFEFEF]' : 'bg-[#FFFCEF]'}`}
+          >
+            {isUp && <TriangleIcon className="w-3 h-3 text-[#5AC467]" />}
+            {isDown && <TriangleIcon className="w-3 h-3 text-[#FF0000] rotate-180" />}
+            <div
+              className={`text-xs font-semibold ${isUp ? 'text-[#5AC467]' : isDown ? 'text-[#FF0000]' : 'text-[#FF9D00]'}`}
+            >
               {isNeutral ? '보통' : `${Math.abs(changePercent)}%`}
             </div>
           </div>

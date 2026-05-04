@@ -11,7 +11,7 @@ const VideoItem = ({ title, thumbnailUrl, score, description }: VideoItemProps) 
   const { fill } = getScoreColors(score);
 
   return (
-    <div className="flex w-full px-7.5 py-6 gap-7.5 self-stretch rounded-xl bg-white border hover:bg-[#F3F0FF] border-[#6B42FF]">
+    <div className="flex w-full px-7.5 py-6 gap-7.5 self-stretch rounded-xl bg-white border hover:bg-[#F3F0FF] active:bg-[#F3F0FF] border-[#A594F9] hover:border-[#6B42FF] active:border-[#6B42FF]">
       <div className="flex h-full justify-center items-center aspect-59/34">
         {thumbnailUrl ? (
           <img src={thumbnailUrl} alt={title} className="w-full h-full object-cover rounded-lg" />
