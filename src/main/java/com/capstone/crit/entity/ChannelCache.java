@@ -31,6 +31,12 @@ public class ChannelCache {
     @Column(columnDefinition = "TEXT")
     private String guidesJson; // JSON 직렬화된 가이드 목록
 
+    // 백분위 점수 (이전 분석 비교용)
+    private Integer percentileScore;
+    private Integer percentileVps;
+    private Integer percentileEngagement;
+    private Integer percentileLikeRate;
+
     @Column(nullable = false)
     private LocalDateTime fetchedAt;
 }

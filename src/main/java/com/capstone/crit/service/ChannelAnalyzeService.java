@@ -151,6 +151,33 @@ public class ChannelAnalyzeService {
         result.put("percentileVideoAnalysis", percentileVideoScores);
         result.put("percentileDataCollectedAt", percentileScoringService.getCollectedAt());
 
+        // 채널 평균 백분위 점수 계산
+        int avgTotal = (int) Math.round(percentileVideoScores.stream()
+                .mapToInt(v -> (int) v.get("percentileScore")).average().orElse(0));
+        int avgVps = (int) Math.round(percentileVideoScores.stream()
+                .mapToInt(v -> (int) v.get("vpsScore")).average().orElse(0));
+        int avgEng = (int) Math.round(percentileVideoScores.stream()
+                .mapToInt(v -> (int) v.get("engagementScore")).average().orElse(0));
+        int avgLr = (int) Math.round(percentileVideoScores.stream()
+                .mapToInt(v -> (int) v.get("likeRateScore")).average().orElse(0));
+
+        // 이전 점수 비교 코멘트 생성
+        String comment = generateScoreComment(channel, avgTotal, avgVps, avgEng, avgLr);
+
+        // 현재 점수를 DB에 저장 (다음 분석 시 비교용)
+        savePercentileScore(channel, avgTotal, avgVps, avgEng, avgLr);
+
+        Map<String, Object> channelScoreMap = new LinkedHashMap<>();
+        channelScoreMap.put("overall", avgTotal);
+        channelScoreMap.put("topPercent", 100 - avgTotal);
+        channelScoreMap.put("comment", comment);
+        channelScoreMap.put("factors", List.of(
+                Map.of("name", "도달력", "score", avgVps, "weight", 60, "description", "구독자 대비 조회수"),
+                Map.of("name", "시청자 반응", "score", avgEng, "weight", 25, "description", "좋아요+댓글 비율"),
+                Map.of("name", "콘텐츠 만족도", "score", avgLr, "weight", 15, "description", "좋아요 비율")
+        ));
+        result.put("channelScore", channelScoreMap);
+
         return result;
     }
 
@@ -297,21 +324,57 @@ public class ChannelAnalyzeService {
         return d.getSeconds();
     }
 
-    // 영상 알고리즘 점수 계산 (0~100) - 추후 정교화 가능
+    // 영상 알고리즘 점수 계산 (0~100)
     private int calculateVideoScore(long views, long likes, long comments, long durationSec, long subscribers) {
         if (subscribers == 0) return 0;
         double engagementRate = (double) (likes + comments) / Math.max(1, views);
         double viewRatio = (double) views / subscribers;
-        // 적정 영상 길이 보너스 (3~15분)
         double durationBonus = (durationSec >= 180 && durationSec <= 900) ? 1.2 : 1.0;
         double raw = (viewRatio * 40 + engagementRate * 100 * 40) * durationBonus;
-        return Math.min(100, (int) Math.round(raw + 20)); // 기본 20점
+        return Math.min(100, (int) Math.round(raw + 20));
     }
 
     // 채널 전체 알고리즘 점수: 영상 점수 평균
     private int calculateChannelScore(ChannelCache channel, List<VideoCache> videos) {
         if (videos.isEmpty()) return 0;
         return (int) Math.round(videos.stream().mapToInt(VideoCache::getAlgorithmScore).average().orElse(0));
+    }
+
+    // 백분위 점수 DB 저장
+    private void savePercentileScore(ChannelCache channel, int total, int vps, int eng, int lr) {
+        try {
+            channelCacheRepository.updatePercentileScore(channel.getId(), total, vps, eng, lr);
+        } catch (Exception e) {
+            log.warn("백분위 점수 저장 실패: {}", e.getMessage());
+        }
+    }
+
+    // AI 코멘트 생성 (이전 점수 비교)
+    private String generateScoreComment(ChannelCache channel, int currentTotal, int avgVps, int avgEng, int avgLr) {
+        Integer prevScore = channel.getPercentileScore();
+        int topPercent = 100 - currentTotal;
+
+        // 강점/약점 판단
+        String strong = avgVps >= avgEng && avgVps >= avgLr ? "도달력" :
+                         avgEng >= avgLr ? "시청자 반응" : "콘텐츠 만족도";
+        String weak = avgVps <= avgEng && avgVps <= avgLr ? "도달력" :
+                       avgEng <= avgLr ? "시청자 반응" : "콘텐츠 만족도";
+
+        if (prevScore != null) {
+            int diff = currentTotal - prevScore;
+            if (diff > 0) {
+                return String.format("상위 %d%%에 위치한 채널이에요! 지난 분석 대비 %d점 상승했어요. %s이(가) 강점이에요!",
+                        topPercent, diff, strong);
+            } else if (diff < 0) {
+                return String.format("상위 %d%%에 위치한 채널이에요. 지난 분석 대비 %d점 하락했어요. %s을(를) 개선하면 회복할 수 있어요!",
+                        topPercent, Math.abs(diff), weak);
+            } else {
+                return String.format("상위 %d%%에 위치한 채널이에요! 점수가 유지되고 있어요. %s이(가) 강점이에요!",
+                        topPercent, strong);
+            }
+        }
+        return String.format("상위 %d%%에 위치한 채널이에요! %s이(가) 강점이고, %s을(를) 높이면 더 성장할 수 있어요.",
+                topPercent, strong, weak);
     }
 
     // 구독자 성장률: (현재 - 이전) / 이전 * 100
