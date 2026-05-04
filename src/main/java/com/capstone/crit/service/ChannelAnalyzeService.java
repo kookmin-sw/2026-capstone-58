@@ -376,51 +376,23 @@ public class ChannelAnalyzeService {
         return strongPart + " " + weakPart;
     }
 
-    // AI 코멘트 생성 (이전 점수 비교 + Bedrock 조언)
+    // AI 코멘트 생성 (점수 이유 25~30자)
     private String generateScoreComment(ChannelCache channel, int currentTotal, int avgVps, int avgEng, int avgLr) {
-        Integer prevScore = channel.getPercentileScore();
-        int topPercent = 100 - currentTotal;
-
-        // 1줄: 데이터 기반 템플릿
-        String line1;
-        if (prevScore != null) {
-            int diff = currentTotal - prevScore;
-            if (diff > 0) {
-                line1 = String.format("상위 %d%%에 위치한 채널이에요! 지난 분석 대비 %d점 상승했어요.", topPercent, diff);
-            } else if (diff < 0) {
-                line1 = String.format("상위 %d%%에 위치한 채널이에요. 지난 분석 대비 %d점 하락했어요.", topPercent, Math.abs(diff));
-            } else {
-                line1 = String.format("상위 %d%%에 위치한 채널이에요! 점수가 유지되고 있어요.", topPercent);
-            }
-        } else {
-            line1 = String.format("상위 %d%%에 위치한 채널이에요!", topPercent);
-        }
-
-        // 2줄: AI 생성 조언
-        String line2;
         try {
-            String strong = avgVps >= avgEng && avgVps >= avgLr ? "도달력" :
-                            avgEng >= avgLr ? "시청자 반응" : "콘텐츠 만족도";
-            String weak = avgVps <= avgEng && avgVps <= avgLr ? "도달력" :
-                          avgEng <= avgLr ? "시청자 반응" : "콘텐츠 만족도";
-
             String prompt = String.format(
-                    "유튜브 채널 성장 조언을 1문장으로 해주세요. 반드시 1문장만 답변하세요.\n" +
+                    "유튜브 채널의 종합 점수가 나오게 된 이유를 25~30자(한글 기준)로 작성해주세요. 반드시 25~30자만 답변하세요. 다른 텍스트는 포함하지 마세요.\n" +
                     "채널: %s (구독자 %d명)\n" +
-                    "점수: 도달력 %d점, 시청자반응 %d점, 콘텐츠만족도 %d점 (각 100점 만점)\n" +
-                    "강점: %s / 약점: %s\n" +
-                    "약점을 개선하기 위한 구체적인 행동 조언을 해주세요.",
+                    "종합 점수: %d점 (100점 만점)\n" +
+                    "도달력: %d점, 시청자반응: %d점, 콘텐츠만족도: %d점",
                     channel.getChannelName(), channel.getSubscriberCount(),
-                    avgVps, avgEng, avgLr, strong, weak);
-            line2 = bedrockService.invokeModelPublic(prompt).trim();
+                    currentTotal, avgVps, avgEng, avgLr);
+            return bedrockService.invokeModelPublic(prompt).trim();
         } catch (Exception e) {
             log.warn("AI 코멘트 생성 실패: {}", e.getMessage());
             String weak = avgVps <= avgEng && avgVps <= avgLr ? "도달력" :
                           avgEng <= avgLr ? "시청자 반응" : "콘텐츠 만족도";
-            line2 = String.format("%s을(를) 높이면 더 성장할 수 있어요!", weak);
+            return String.format("%s이(가) 부족해 점수가 낮아졌어요.", weak);
         }
-
-        return line1 + " " + line2;
     }
 
     // 구독자 성장률: (현재 - 이전) / 이전 * 100
