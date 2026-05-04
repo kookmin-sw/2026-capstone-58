@@ -32,6 +32,14 @@ CATEGORIES = {
 # ── YouTube API ───────────────────────────────────────────────────
 
 def discover_channels(category_id, max_pages=4):
+    """mostPopularで채널 발견. 결과 0이면 search.list로 fallback."""
+    channel_ids = _discover_by_popular(category_id, max_pages)
+    if not channel_ids:
+        channel_ids = _discover_by_search(category_id, max_pages)
+    return list(channel_ids)
+
+
+def _discover_by_popular(category_id, max_pages):
     channel_ids = set()
     page_token = None
     for _ in range(max_pages):
@@ -48,7 +56,27 @@ def discover_channels(category_id, max_pages=4):
         page_token = r.get("nextPageToken")
         if not page_token:
             break
-    return list(channel_ids)
+    return channel_ids
+
+
+def _discover_by_search(category_id, max_pages):
+    channel_ids = set()
+    page_token = None
+    for _ in range(max_pages):
+        params = {
+            "key": YOUTUBE_API_KEY, "type": "video",
+            "videoCategoryId": category_id, "regionCode": "KR",
+            "part": "snippet", "maxResults": 50, "order": "viewCount",
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        r = requests.get(f"{BASE}/search", params=params).json()
+        for item in r.get("items", []):
+            channel_ids.add(item["snippet"]["channelId"])
+        page_token = r.get("nextPageToken")
+        if not page_token:
+            break
+    return channel_ids
 
 
 def get_channel(channel_id):
