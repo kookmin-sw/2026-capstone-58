@@ -1,3 +1,5 @@
+import { getScoreColors } from '../scoreColors';
+
 interface CircleProgressProps {
   score: number;
   maxScore?: number;
@@ -11,6 +13,7 @@ const CircleProgress = ({ score, maxScore = 100, rank }: CircleProgressProps) =>
   const circumference = 2 * Math.PI * radius;
   const percent = score / maxScore;
   const offset = circumference * (1 - percent);
+  const { fill, track } = getScoreColors(score);
 
   return (
     <div
@@ -23,7 +26,7 @@ const CircleProgress = ({ score, maxScore = 100, rank }: CircleProgressProps) =>
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#EAE0F4"
+          stroke={track}
           strokeWidth={strokeWidth}
         />
         <circle
@@ -31,7 +34,7 @@ const CircleProgress = ({ score, maxScore = 100, rank }: CircleProgressProps) =>
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#9F8CFF"
+          stroke={fill}
           strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeDasharray={circumference}
@@ -43,7 +46,10 @@ const CircleProgress = ({ score, maxScore = 100, rank }: CircleProgressProps) =>
         <span className="text-4xl font-bold text-black">{score}</span>
         <span className="text-sm text-gray-400">/{maxScore}</span>
         {rank && (
-          <span className="mt-1 px-2 py-0.5 rounded-full bg-[#EAE0F4] text-[#7C5CFF] text-xs font-semibold">
+          <span
+            className="mt-1 px-2 py-0.5 rounded-full text-xs font-semibold"
+            style={{ backgroundColor: track, color: fill }}
+          >
             {rank}
           </span>
         )}
