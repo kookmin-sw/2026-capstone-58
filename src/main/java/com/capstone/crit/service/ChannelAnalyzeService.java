@@ -133,7 +133,8 @@ public class ChannelAnalyzeService {
         for (VideoCache video : videos) {
             PercentileScoringService.ScoreResult sr = percentileScoringService.score(
                     video.getViewCount(), video.getLikeCount(), video.getCommentCount(),
-                    video.getDurationSeconds(), channel.getSubscriberCount(), "0"
+                    video.getDurationSeconds(), channel.getSubscriberCount(),
+                    video.getCategoryId() != null ? video.getCategoryId() : "0"
             );
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("videoId", video.getVideoId());
@@ -278,6 +279,7 @@ public class ChannelAnalyzeService {
                         .commentCount(commentCount)
                         .durationSeconds(duration)
                         .algorithmScore(score)
+                        .categoryId(item.path("snippet").path("categoryId").asText("0"))
                         .videoRank(rank++)
                         .fetchedAt(LocalDateTime.now())
                         .build());
