@@ -45,3 +45,11 @@ export const postScript = async (data: ScriptRequest) => {
   });
   return response.data;
 };
+
+// GET /analyze/channel - 채널 분석 요청
+export const getChannelAnalysis = async (channel: string) => {
+  const response = await api.get('/analyze/channel', {
+    params: { channel },
+  });
+  return response.data;
+};
