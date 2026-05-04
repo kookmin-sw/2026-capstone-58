@@ -87,6 +87,7 @@ public class ChannelAnalyzeService {
         result.put("channel", Map.of(
                 "channelId", channel.getChannelId(),
                 "name", channel.getChannelName(),
+                "handle", channel.getHandle() != null ? channel.getHandle() : "",
                 "profileImageUrl", channel.getProfileImageUrl(),
                 "subscriberCount", channel.getSubscriberCount()
         ));
@@ -176,6 +177,7 @@ public class ChannelAnalyzeService {
         fresh = ChannelCache.builder()
                 .channelId(fresh.getChannelId())
                 .channelName(fresh.getChannelName())
+                .handle(fresh.getHandle())
                 .profileImageUrl(fresh.getProfileImageUrl())
                 .subscriberCount(fresh.getSubscriberCount())
                 .previousSubscriberCount(previousSubscriberCount)
@@ -249,6 +251,7 @@ public class ChannelAnalyzeService {
             return ChannelCache.builder()
                     .channelId(channelId)
                     .channelName(snippet.path("title").asText())
+                    .handle(snippet.path("customUrl").asText(null))
                     .profileImageUrl(snippet.path("thumbnails").path("default").path("url").asText())
                     .subscriberCount(subscriberCount)
                     .previousSubscriberCount(previousSubscriberCount)

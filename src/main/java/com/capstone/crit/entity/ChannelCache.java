@@ -20,6 +20,7 @@ public class ChannelCache {
     private String channelId;
 
     private String channelName;
+    private String handle;
     private String profileImageUrl;
     private Long subscriberCount;
     private Long previousSubscriberCount; // 성장률 계산용
