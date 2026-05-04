@@ -382,13 +382,16 @@ public class ChannelAnalyzeService {
     // AI 코멘트 생성 (점수 이유 25~30자)
     private String generateScoreComment(ChannelCache channel, int currentTotal, int avgVps, int avgEng, int avgLr) {
         try {
+            String weak = avgVps <= avgEng && avgVps <= avgLr ? "도달력" :
+                          avgEng <= avgLr ? "시청자반응" : "콘텐츠만족도";
             String prompt = String.format(
-                    "유튜브 채널의 종합 점수가 나오게 된 이유를 25~30자(한글 기준)로 작성해주세요. 반드시 25~30자만 답변하세요. 다른 텍스트는 포함하지 마세요.\n" +
+                    "유튜브 채널 점수 코멘트를 한 줄로 작성해.\n" +
                     "채널: %s (구독자 %d명)\n" +
-                    "종합 점수: %d점 (100점 만점)\n" +
-                    "도달력: %d점, 시청자반응: %d점, 콘텐츠만족도: %d점",
+                    "종합 %d점 (도달력 %d, 시청자반응 %d, 만족도 %d). 약점: %s.\n" +
+                    "규칙: 한 줄, 한 문장. 채널 규모에 맞는 표현. 약점이 점수에 미친 영향을 설명.\n" +
+                    "예시: '구독자 대비 조회수가 낮아 도달력이 점수를 끌어내렸어요'",
                     channel.getChannelName(), channel.getSubscriberCount(),
-                    currentTotal, avgVps, avgEng, avgLr);
+                    currentTotal, avgVps, avgEng, avgLr, weak);
             return bedrockService.invokeModelPublic(prompt).trim();
         } catch (Exception e) {
             log.warn("AI 코멘트 생성 실패: {}", e.getMessage());
