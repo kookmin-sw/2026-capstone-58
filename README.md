@@ -238,14 +238,14 @@ GET /analyze/channel?channel={channel}
   },
 
   "summary": {
-    "avgViewCount": 150000.0,
-    "avgViewCountChange": 12.5,
-    "uploadFrequencyPerWeek": 2.5,
-    "uploadFrequencyChange": -8.3,
-    "avgWatchDurationSeconds": null,
-    "avgWatchDurationChange": null,
-    "subscriberChange": 15000,
-    "subscriberChangePercent": 3.5
+    "avgViewCount": 150000.0,               // 채널 전체 평균 조회수
+    "avgViewCountChange": 12.5,             // 이전 분석 대비 평균 조회수 변화율 (%, 첫 분석 시 null)
+    "uploadFrequencyPerWeek": 2.5,          // 주당 업로드 빈도
+    "uploadFrequencyChange": -8.3,          // 이전 분석 대비 업로드 빈도 변화율 (%, 첫 분석 시 null)
+    "avgWatchDurationSeconds": null,        // 평균 시청 지속 시간 (Analytics API 연동 전 null)
+    "avgWatchDurationChange": null,         // 이전 분석 대비 시청 지속 시간 변화율 (%, 미구현 null)
+    "subscriberChange": 15000,              // 이전 분석 대비 구독자 증감 수 (첫 분석 시 null)
+    "subscriberChangePercent": 3.5          // 이전 분석 대비 구독자 증감률 (%, 첫 분석 시 null)
   },
 
   "guides": [
