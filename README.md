@@ -463,6 +463,7 @@ src/main/java/com/capstone/crit/
 │   ├── YoutubeAPIService.java         # YouTube Data API 연동
 │   ├── ChannelAnalyzeService.java     # 채널 분석 (캐싱 + 점수 계산 + 가이드 생성)
 │   ├── ImprovedScoringService.java    # 개선된 다층 점수 시스템
+│   ├── PercentileScoringService.java  # 백분위 기반 점수 계산 (S3 연동)
 │   ├── BedrockService.java            # AWS Bedrock Claude — 썸네일 분석 + 가이드 생성
 │   ├── ImagenService.java             # Google Imagen 4 — 썸네일 이미지 생성
 │   ├── S3Service.java                 # AWS S3 — 썸네일 이미지 업로드
@@ -501,6 +502,58 @@ src/main/java/com/capstone/crit/
 
 ---
 
+## 📊 백분위 기반 점수 모델 (Percentile Scoring)
+
+### 개요
+
+82,000개 이상의 실제 유튜브 영상 데이터를 수집·분석하여 만든 **데이터 기반 점수 모델**. 기존 AI 임의 공식 대신, 같은 조건의 영상들 중 상위 몇 %인지를 점수로 반환한다.
+
+### 아키텍처
+
+```
+Lambda (수집) → S3 (latest.json) → crit-server (점수 계산)
+```
+
+- **Lambda**: YouTube Data API로 카테고리별 인기 채널/영상 수집 → 백분위 테이블 계산 → S3 저장
+- **S3**: `pj-kmucd1-08-s3-data-collector/latest.json`에 백분위 테이블 보관
+- **crit-server**: `PercentileScoringService`가 S3에서 테이블 로드 (1시간마다 갱신) → 점수 계산
+
+### 점수 공식
+
+```
+점수 = VPS 백분위 × 0.60 + 참여율 백분위 × 0.25 + 좋아요율 백분위 × 0.15
+```
+
+비교 그룹 = `구독자 구간(S/M/L/XL)` × `숏폼/롱폼` × `카테고리`
+
+### API 응답 예시
+
+`GET /analyze/channel?channel=@codingapple` 응답에 `percentileVideoAnalysis` 필드 추가:
+
+```json
+{
+  "percentileVideoAnalysis": [
+    {
+      "videoId": "abc123",
+      "title": "너무 비싼 어도비 포토샵 쌀먹하기",
+      "percentileScore": 86,
+      "vpsScore": 82,
+      "engagementScore": 92,
+      "likeRateScore": 91,
+      "isShort": true,
+      "matched": true
+    }
+  ],
+  "percentileDataCollectedAt": "2026-05-04T04:07:03+00:00"
+}
+```
+
+### 관련 프로젝트
+
+- [crit-data-collector](https://github.com/AWS-Capstone8/crit-data-collector) — 데이터 수집 Lambda + 점수 모델 분석
+
+---
+
 ## ⚠️ 알려진 이슈 및 개선 예정
 
 - `/ai_script` 호출 시 `youtubeAPIService.getData()`가 중복 호출됨 → Redis 캐싱으로 개선 예정
@@ -508,6 +561,16 @@ src/main/java/com/capstone/crit/
 ---
 
 ## 변경 이력
+
+### 2026-05-04
+- **백분위 기반 점수 모델 추가** (`GET /analyze/channel` 응답에 `percentileVideoAnalysis` 추가)
+  - `PercentileScoringService` 추가: S3에서 백분위 테이블 로드 + 점수 계산
+  - 82,000개 실제 영상 데이터 기반, 구독자 구간 × 숏폼/롱폼 × 카테고리별 분리 비교
+  - 1시간마다 S3에서 최신 테이블 자동 갱신 (`@Scheduled`)
+  - `ChannelAnalyzeService` 수정: `percentileVideoAnalysis`, `percentileDataCollectedAt` 필드 추가
+  - `CritApplication`에 `@EnableScheduling` 추가
+  - `application.properties`에 `aws.s3.scoring-bucket` 설정 추가
+  - `build.gradle`에 .env 자동 로드 로직 추가
 
 ### 2026-04-24
 - **개선된 YouTube 성장 중심 알고리즘 추가**

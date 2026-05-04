@@ -26,6 +26,7 @@ public class ChannelAnalyzeService {
     private final VideoCacheRepository videoCacheRepository;
     private final BedrockService bedrockService;
     private final ImprovedScoringService improvedScoringService;
+    private final PercentileScoringService percentileScoringService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${youtube.api.key}")
@@ -124,9 +125,30 @@ public class ChannelAnalyzeService {
                 "thumbnailUrl", v.getThumbnailUrl(),
                 "algorithmScore", v.getAlgorithmScore()
         )).toList());
-        
         // 개선된 알고리즘 결과 추가
         result.put("improvedVideoAnalysis", improvedVideoScores);
+
+        // 백분위 기반 점수 계산
+        List<Map<String, Object>> percentileVideoScores = new ArrayList<>();
+        for (VideoCache video : videos) {
+            PercentileScoringService.ScoreResult sr = percentileScoringService.score(
+                    video.getViewCount(), video.getLikeCount(), video.getCommentCount(),
+                    video.getDurationSeconds(), channel.getSubscriberCount(), "0"
+            );
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("videoId", video.getVideoId());
+            entry.put("title", video.getTitle());
+            entry.put("thumbnailUrl", video.getThumbnailUrl());
+            entry.put("percentileScore", sr.totalScore());
+            entry.put("vpsScore", sr.vpsScore());
+            entry.put("engagementScore", sr.engagementScore());
+            entry.put("likeRateScore", sr.likeRateScore());
+            entry.put("isShort", video.getDurationSeconds() < 60);
+            entry.put("matched", sr.matched());
+            percentileVideoScores.add(entry);
+        }
+        result.put("percentileVideoAnalysis", percentileVideoScores);
+        result.put("percentileDataCollectedAt", percentileScoringService.getCollectedAt());
 
         return result;
     }
