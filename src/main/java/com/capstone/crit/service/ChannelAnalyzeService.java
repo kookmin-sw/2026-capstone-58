@@ -107,6 +107,7 @@ public class ChannelAnalyzeService {
         result.put("guides", guides);
 
         // 백분위 기반 점수 계산
+        List<PercentileScoringService.ScoreResult> scoreResults = new ArrayList<>();
         List<Map<String, Object>> percentileVideoScores = new ArrayList<>();
         for (VideoCache video : videos) {
             PercentileScoringService.ScoreResult sr = percentileScoringService.score(
@@ -114,16 +115,12 @@ public class ChannelAnalyzeService {
                     video.getDurationSeconds(), channel.getSubscriberCount(),
                     video.getCategoryId() != null ? video.getCategoryId() : "0"
             );
+            scoreResults.add(sr);
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("videoId", video.getVideoId());
             entry.put("title", video.getTitle());
             entry.put("thumbnailUrl", video.getThumbnailUrl());
             entry.put("percentileScore", sr.totalScore());
-            entry.put("vpsScore", sr.vpsScore());
-            entry.put("engagementScore", sr.engagementScore());
-            entry.put("likeRateScore", sr.likeRateScore());
-            entry.put("isShort", video.getDurationSeconds() < 60);
-            entry.put("matched", sr.matched());
             entry.put("reason", generateVideoReason(sr));
             percentileVideoScores.add(entry);
         }
@@ -131,14 +128,14 @@ public class ChannelAnalyzeService {
         result.put("percentileDataCollectedAt", percentileScoringService.getCollectedAt());
 
         // 채널 평균 백분위 점수 계산
-        int avgTotal = (int) Math.round(percentileVideoScores.stream()
-                .mapToInt(v -> (int) v.get("percentileScore")).average().orElse(0));
-        int avgVps = (int) Math.round(percentileVideoScores.stream()
-                .mapToInt(v -> (int) v.get("vpsScore")).average().orElse(0));
-        int avgEng = (int) Math.round(percentileVideoScores.stream()
-                .mapToInt(v -> (int) v.get("engagementScore")).average().orElse(0));
-        int avgLr = (int) Math.round(percentileVideoScores.stream()
-                .mapToInt(v -> (int) v.get("likeRateScore")).average().orElse(0));
+        int avgTotal = (int) Math.round(scoreResults.stream()
+                .mapToInt(PercentileScoringService.ScoreResult::totalScore).average().orElse(0));
+        int avgVps = (int) Math.round(scoreResults.stream()
+                .mapToInt(PercentileScoringService.ScoreResult::vpsScore).average().orElse(0));
+        int avgEng = (int) Math.round(scoreResults.stream()
+                .mapToInt(PercentileScoringService.ScoreResult::engagementScore).average().orElse(0));
+        int avgLr = (int) Math.round(scoreResults.stream()
+                .mapToInt(PercentileScoringService.ScoreResult::likeRateScore).average().orElse(0));
 
         // 이전 점수 비교 코멘트 생성
         String comment = generateScoreComment(channel, avgTotal, avgVps, avgEng, avgLr);
