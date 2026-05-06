@@ -3,6 +3,7 @@ package com.capstone.crit.service;
 import com.capstone.crit.entity.ChannelCache;
 import com.capstone.crit.entity.VideoCache;
 import com.capstone.crit.repository.ChannelCacheRepository;
+import com.capstone.crit.repository.UserRepository;
 import com.capstone.crit.repository.VideoCacheRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,8 +14,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import org.springframework.http.MediaType;
 import com.capstone.crit.service.ImprovedScoringService;
 
 @Service
@@ -24,6 +28,7 @@ public class ChannelAnalyzeService {
 
     private final ChannelCacheRepository channelCacheRepository;
     private final VideoCacheRepository videoCacheRepository;
+    private final UserRepository userRepository;
     private final BedrockService bedrockService;
     private final ImprovedScoringService improvedScoringService;
     private final PercentileScoringService percentileScoringService;
@@ -31,6 +36,12 @@ public class ChannelAnalyzeService {
 
     @Value("${youtube.api.key}")
     private String youtubeApiKey;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-id}")
+    private String googleClientId;
+
+    @Value("${spring.security.oauth2.client.registration.google.client-secret}")
+    private String googleClientSecret;
 
     private static final int CACHE_DAYS = 30;
     private static final String YT_API = "https://www.googleapis.com/youtube/v3";
@@ -248,6 +259,18 @@ public class ChannelAnalyzeService {
                     java.time.OffsetDateTime.parse(publishedAt).toLocalDate(), java.time.LocalDate.now()));
             double uploadFreq = (double) totalVideos / channelAgeWeeks;
 
+            Double avgWatchDuration = null;
+            try {
+                String refreshToken = userRepository.findByYoutubeChannelId(channelId)
+                        .map(u -> u.getGoogleRefreshToken()).orElse(null);
+                if (refreshToken != null) {
+                    String accessToken = refreshGoogleAccessToken(refreshToken);
+                    avgWatchDuration = fetchAvgWatchDurationFromAnalytics(accessToken);
+                }
+            } catch (Exception e) {
+                log.warn("Analytics API 평균 시청 지속 시간 조회 실패: {}", e.getMessage());
+            }
+
             return ChannelCache.builder()
                     .channelId(channelId)
                     .channelName(snippet.path("title").asText())
@@ -258,7 +281,7 @@ public class ChannelAnalyzeService {
                     .totalVideoCount(totalVideos)
                     .avgViewCount(stats.path("viewCount").asDouble() / Math.max(1, totalVideos))
                     .uploadFrequencyPerWeek(Math.round(uploadFreq * 10.0) / 10.0)
-                    .avgWatchDurationSeconds(null) // YouTube Analytics API 보류
+                    .avgWatchDurationSeconds(avgWatchDuration)
                     .fetchedAt(LocalDateTime.now())
                     .build();
         } catch (Exception e) {
@@ -461,5 +484,48 @@ public class ChannelAnalyzeService {
             log.warn("가이드 생성 실패: {}", e.getMessage());
         }
         return List.of();
+    }
+
+    private String refreshGoogleAccessToken(String refreshToken) throws Exception {
+        String body = "grant_type=refresh_token"
+                + "&client_id=" + googleClientId
+                + "&client_secret=" + googleClientSecret
+                + "&refresh_token=" + refreshToken;
+
+        String response = WebClient.create()
+                .post()
+                .uri("https://oauth2.googleapis.com/token")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        String accessToken = objectMapper.readTree(response).path("access_token").asText(null);
+        if (accessToken == null || accessToken.isEmpty()) {
+            throw new RuntimeException("access_token 재발급 실패");
+        }
+        return accessToken;
+    }
+
+    private Double fetchAvgWatchDurationFromAnalytics(String accessToken) throws Exception {
+        String endDate   = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        String startDate = LocalDate.now().minusDays(28).format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+        String response = WebClient.create()
+                .get()
+                .uri("https://youtubeanalytics.googleapis.com/v2/reports"
+                        + "?ids=channel%3D%3DMINE"
+                        + "&startDate=" + startDate
+                        + "&endDate=" + endDate
+                        + "&metrics=averageViewDuration")
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        JsonNode rows = objectMapper.readTree(response).path("rows");
+        if (rows.isEmpty()) return null;
+        return rows.get(0).get(0).asDouble();
     }
 }
