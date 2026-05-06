@@ -67,7 +67,7 @@ tasks.named('test') {
 
 // .env 파일 자동 로드 → bootRun에 환경변수 주입
 tasks.named('bootRun') {
-	def envFile = file('.env')
+	def envFile = file('api_env/.env')
 	if (envFile.exists()) {
 		envFile.readLines().each { line ->
 			if (line && !line.startsWith('#') && line.contains('=')) {
