@@ -268,7 +268,7 @@ public class ChannelAnalyzeService {
                     avgWatchDuration = fetchAvgWatchDurationFromAnalytics(accessToken);
                 }
             } catch (Exception e) {
-                log.warn("Analytics API 평균 시청 지속 시간 조회 실패: {}", e.getMessage());
+                log.warn("Analytics API 평균 시청 지속 시간 조회 실패: {} - {}", e.getClass().getSimpleName(), e.getMessage(), e);
             }
 
             return ChannelCache.builder()
@@ -514,11 +514,11 @@ public class ChannelAnalyzeService {
 
         String response = WebClient.create()
                 .get()
-                .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                .uri(java.net.URI.create("https://youtubeanalytics.googleapis.com/v2/reports"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate
                         + "&endDate=" + endDate
-                        + "&metrics=averageViewDuration")
+                        + "&metrics=averageViewDuration"))
                 .header("Authorization", "Bearer " + accessToken)
                 .retrieve()
                 .bodyToMono(String.class)

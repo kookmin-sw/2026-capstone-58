@@ -92,11 +92,12 @@ public class PercentileScoringService {
      */
     public ScoreResult score(long viewCount, long likeCount, long commentCount,
                              long durationSec, long subscriberCount, String categoryId) {
-        if (viewCount == 0 || subscriberCount == 0) {
+        if (viewCount == 0) {
             return new ScoreResult(0, 0, 0, 0, false);
         }
 
-        double vps = (double) viewCount / subscriberCount;
+        long effectiveSubscribers = Math.max(1, subscriberCount);
+        double vps = (double) viewCount / effectiveSubscribers;
         double engagementRate = (double) (likeCount + commentCount) / viewCount;
         double likeRate = (double) likeCount / viewCount;
         boolean isShort = durationSec < 60;
