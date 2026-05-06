@@ -20,6 +20,7 @@ public class ChannelCache {
     private String channelId;
 
     private String channelName;
+    private String handle;
     private String profileImageUrl;
     private Long subscriberCount;
     private Long previousSubscriberCount; // 성장률 계산용
@@ -30,6 +31,16 @@ public class ChannelCache {
 
     @Column(columnDefinition = "TEXT")
     private String guidesJson; // JSON 직렬화된 가이드 목록
+
+    // 백분위 점수 (이전 분석 비교용)
+    private Integer percentileScore;
+    private Integer percentileVps;
+    private Integer percentileEngagement;
+    private Integer percentileLikeRate;
+
+    // 이전 분석 값 (변화율 계산용)
+    private Double previousAvgViewCount;
+    private Double previousUploadFrequencyPerWeek;
 
     @Column(nullable = false)
     private LocalDateTime fetchedAt;

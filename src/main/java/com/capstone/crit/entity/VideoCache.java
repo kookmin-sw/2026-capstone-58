@@ -28,6 +28,7 @@ public class VideoCache {
     private Long durationSeconds;
     private Integer algorithmScore; // 계산된 알고리즘 점수
     private Integer videoRank;      // 1~10 순서
+    private String categoryId;      // YouTube 카테고리 ID
 
     @Column(nullable = false)
     private LocalDateTime fetchedAt;

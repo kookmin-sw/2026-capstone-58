@@ -76,7 +76,9 @@ Swagger UI: `http://localhost:8080/swagger-ui.html`
 
 ---
 
-## 🚀 개선된 알고리즘 (Improved Scoring Algorithm)
+## 🚀 개선된 알고리즘 (Improved Scoring Algorithm) — ⚠️ Deprecated
+
+> **참고**: 이 알고리즘은 백분위 기반 점수 모델로 대체되었습니다. API 응답에서 `improvedVideoAnalysis`는 삭제되었으며, `percentileVideoAnalysis`와 `channelScore`가 사용됩니다.
 
 ### 개요
 
@@ -211,22 +213,82 @@ GET /analyze/channel?channel={channel}
 
 | 필드 | 타입 | 설명 | 예시 |
 |------|------|------|------|
-| `channel` | String | 채널 ID, @handle, 또는 채널 URL | `UCSLrpBAzr-ROVGHQ5EmxnUg` 또는 `@codingapple` 또는 `https://youtube.com/@codingapple` |
+| `channel` | String | 채널 ID, @handle, 또는 채널 URL | `@codingapple` 또는 `https://youtube.com/@codingapple` |
 
 #### Response
 
+```json
+{
+  "channel": {
+    "channelId": "UCxxx",
+    "name": "코딩애플",
+    "profileImageUrl": "https://...",
+    "subscriberCount": 441000
+  },
+
+  "channelScore": {
+    "overall": 76,
+    "topPercent": 24,
+    "comment": "코딩애플은 구독자 442,000명에 비해 도달력 부족으로 점수가 다소 낮지만, 시청자 반응과 만족도가 양호한 채널이네요.",
+    "factors": [
+      { "name": "도달력", "score": 72, "weight": 60, "description": "구독자 대비 조회수" },
+      { "name": "시청자 반응", "score": 78, "weight": 25, "description": "좋아요+댓글 비율" },
+      { "name": "콘텐츠 만족도", "score": 80, "weight": 15, "description": "좋아요 비율" }
+    ]
+  },
+
+  "summary": {
+    "avgViewCount": 150000.0,               // 채널 전체 평균 조회수
+    "avgViewCountChange": 12.5,             // 이전 분석 대비 평균 조회수 변화율 (%, 첫 분석 시 null)
+    "uploadFrequencyPerWeek": 2.5,          // 주당 업로드 빈도
+    "uploadFrequencyChange": -8.3,          // 이전 분석 대비 업로드 빈도 변화율 (%, 첫 분석 시 null)
+    "avgWatchDurationSeconds": null,        // 평균 시청 지속 시간 (Analytics API 연동 전 null)
+    "avgWatchDurationChange": null,         // 이전 분석 대비 시청 지속 시간 변화율 (%, 미구현 null)
+    "subscriberChange": 15000,              // 이전 분석 대비 구독자 증감 수 (첫 분석 시 null)
+    "subscriberChangePercent": 3.5          // 이전 분석 대비 구독자 증감률 (%, 첫 분석 시 null)
+  },
+
+  "guides": [
+    { "title": "업로드 주기 늘리기", "description": "주 2회 업로드 시 성장률이 20% 높아져요!" },
+    { "title": "영상 길이 최적화", "description": "동일 카테고리 대비 영상이 길어요. 10분 이내로 줄이면 시청 유지율이 올라갈 수 있어요." },
+    { "title": "시청자 반응 유도", "description": "댓글 유도 질문을 영상 중간에 넣어보세요." }
+  ],
+
+  "percentileVideoAnalysis": [
+    {
+      "videoId": "abc123",
+      "title": "구글 신제품 때문에 완전히 멘탈이 나가버린 유저들",
+      "thumbnailUrl": "https://...",
+      "percentileScore": 84,
+      "reason": "도달력이(가) 상위 12%로 뛰어나요. 시청자 반응을(를) 개선하면 점수가 올라갈 수 있어요."
+    }
+  ],
+
+  "percentileDataCollectedAt": "2026-05-04T05:32:04+00:00"
+}
+```
+
+#### 응답 필드 설명
+
 | 필드 | 설명 |
 |------|------|
-| `channel.name` | 채널명 |
-| `channel.subscriberCount` | 구독자 수 |
-| `channel.profileImageUrl` | 프로필 이미지 URL |
-| `algorithmScore` | 채널 알고리즘 점수 (0~100) |
-| `summary.avgViewCount` | 평균 조회수 |
-| `summary.uploadFrequencyPerWeek` | 주 업로드 빈도 |
-| `summary.avgWatchDurationSeconds` | 평균 시청 지속 시간 (Analytics API 연동 전 null) |
-| `summary.subscriberGrowthRate` | 구독자 성장률 (%) |
-| `guides` | AI 생성 채널 방향 가이드 (title + description) |
-| `recentVideos` | 최신 영상 10개 (videoId, title, thumbnailUrl, algorithmScore) |
+| **channel** | 채널 기본 정보 |
+| **channelScore.overall** | 채널 종합 점수 (0~100, 영상 평균 백분위) |
+| **channelScore.topPercent** | 상위 몇 % (100 - overall) |
+| **channelScore.comment** | AI 생성 한 줄 코멘트 (채널 규모 + 약점 기반) |
+| **channelScore.factors** | 점수 구성 요인 3개 (도달력 60%, 시청자반응 25%, 만족도 15%) |
+| **summary.avgViewCount** | 채널 전체 평균 조회수 |
+| **summary.avgViewCountChange** | 이전 분석 대비 평균 조회수 변화율 (%, 첫 분석 시 null) |
+| **summary.uploadFrequencyPerWeek** | 주당 업로드 빈도 |
+| **summary.uploadFrequencyChange** | 이전 분석 대비 업로드 빈도 변화율 (%, 첫 분석 시 null) |
+| **summary.avgWatchDurationSeconds** | 평균 시청 지속 시간 (Analytics API 연동 전 null) |
+| **summary.avgWatchDurationChange** | 이전 분석 대비 시청 지속 시간 변화율 (%, 미구현 null) |
+| **summary.subscriberChange** | 이전 분석 대비 구독자 증감 수 (첫 분석 시 null) |
+| **summary.subscriberChangePercent** | 이전 분석 대비 구독자 증감률 (%, 첫 분석 시 null) |
+| **guides** | AI 생성 채널 성장 가이드 3개 (Bedrock, 점수 데이터 기반) |
+| **percentileVideoAnalysis** | 영상별 백분위 점수 + 이유 |
+| **percentileVideoAnalysis[].reason** | 영상 점수에 대한 데이터 기반 설명 (템플릿) |
+| **percentileDataCollectedAt** | 백분위 테이블 수집 일시 |
 
 ---
 
@@ -392,12 +454,19 @@ Content-Type: application/json
 | `channel_name` | VARCHAR | 채널명 |
 | `profile_image_url` | VARCHAR | 프로필 이미지 URL |
 | `subscriber_count` | BIGINT | 현재 구독자 수 |
-| `previous_subscriber_count` | BIGINT | 이전 캐시 시점 구독자 수 (성장률 계산용) |
+| `previous_subscriber_count` | BIGINT | 이전 캐시 시점 구독자 수 |
 | `total_video_count` | BIGINT | 전체 영상 수 |
 | `avg_view_count` | DOUBLE | 평균 조회수 |
+| `previous_avg_view_count` | DOUBLE | 이전 캐시 시점 평균 조회수 |
 | `upload_frequency_per_week` | DOUBLE | 주 업로드 빈도 |
-| `avg_watch_duration_seconds` | DOUBLE | 평균 시청 지속 시간 (Analytics API 연동 전 null) |
+| `previous_upload_frequency_per_week` | DOUBLE | 이전 캐시 시점 업로드 빈도 |
+| `avg_watch_duration_seconds` | DOUBLE | 평균 시청 지속 시간 (미구현, null) |
+| `percentile_score` | INT | 백분위 종합 점수 (이전 비교용) |
+| `percentile_vps` | INT | 도달력 백분위 |
+| `percentile_engagement` | INT | 시청자 반응 백분위 |
+| `percentile_like_rate` | INT | 콘텐츠 만족도 백분위 |
 | `guides_json` | TEXT | AI 생성 가이드 JSON 문자열 |
+| `fetched_at` | DATETIME | 수집 시각 (캐시 만료 기준) |
 | `fetched_at` | DATETIME | 수집 시각 (캐시 만료 기준) |
 
 ### video_cache
@@ -463,6 +532,7 @@ src/main/java/com/capstone/crit/
 │   ├── YoutubeAPIService.java         # YouTube Data API 연동
 │   ├── ChannelAnalyzeService.java     # 채널 분석 (캐싱 + 점수 계산 + 가이드 생성)
 │   ├── ImprovedScoringService.java    # 개선된 다층 점수 시스템
+│   ├── PercentileScoringService.java  # 백분위 기반 점수 계산 (S3 연동)
 │   ├── BedrockService.java            # AWS Bedrock Claude — 썸네일 분석 + 가이드 생성
 │   ├── ImagenService.java             # Google Imagen 4 — 썸네일 이미지 생성
 │   ├── S3Service.java                 # AWS S3 — 썸네일 이미지 업로드
@@ -501,6 +571,83 @@ src/main/java/com/capstone/crit/
 
 ---
 
+## 📊 백분위 기반 점수 모델 (Percentile Scoring)
+
+### 개요
+
+89,000개 이상의 실제 유튜브 영상 데이터(14개 카테고리, 1,900+ 채널)를 수집·분석하여 만든 **데이터 기반 점수 모델**. 기존 AI 임의 공식 대신, 같은 조건의 영상들 중 상위 몇 %인지를 점수로 반환한다.
+
+### 아키텍처
+
+```
+┌─ 데이터 파이프라인 ──────────────────────────────────┐
+│  API Gateway POST /collect                          │
+│       ↓                                             │
+│  Lambda (Python 3.14)                               │
+│   ├ YouTube API 수집 (mostPopular + search fallback)│
+│   ├ 백분위 테이블 계산                                 │
+│   └ S3 저장 (latest.json)                            │
+└─────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─ crit-server ───────────────────────────────────────┐
+│  PercentileScoringService                           │
+│   ├ 서버 시작 시 S3에서 latest.json 로드              │
+│   ├ 1시간마다 자동 갱신 (@Scheduled)                  │
+│   └ score() → 백분위 조회 → 점수 반환                 │
+└─────────────────────────────────────────────────────┘
+```
+
+### 점수 공식
+
+```
+점수 = 도달력(VPS) 백분위 × 0.60 + 시청자반응(참여율) 백분위 × 0.25 + 콘텐츠만족도(좋아요율) 백분위 × 0.15
+```
+
+| 요인 | 가중치 | 상관계수 | 설명 |
+|------|--------|---------|------|
+| 도달력 (views_per_sub) | 60% | +0.78 | 구독자 대비 조회수 |
+| 시청자 반응 (engagement_rate) | 25% | -0.16 | (좋아요+댓글) / 조회수 |
+| 콘텐츠 만족도 (like_rate) | 15% | -0.14 | 좋아요 / 조회수 |
+
+가중치는 82,000개 영상 데이터의 상관관계 분석에서 도출.
+
+### 비교 그룹
+
+`구독자 구간` × `숏폼/롱폼` × `카테고리`
+
+| 구독자 구간 | 범위 |
+|---|---|
+| S | 0 ~ 50,000 |
+| M | 50,000 ~ 200,000 |
+| L | 200,000 ~ 500,000 |
+| XL | 500,000+ |
+
+숏폼/롱폼 기준: 영상 길이 60초
+
+### 점수 해석
+
+| 점수 | 의미 |
+|------|------|
+| 90점 | 같은 조건에서 상위 10% |
+| 75점 | 상위 25% |
+| 50점 | 중간 |
+| 25점 | 하위 25% |
+
+### 코멘트 생성
+
+- **1줄 (AI 생성, Bedrock)**: 채널 규모와 약점을 반영한 한 줄 코멘트 (예: "코딩애플은 구독자 442,000명에 비해 도달력 부족으로 점수가 다소 낮지만, 시청자 반응과 만족도가 양호한 채널이네요.")
+
+### 가이드 생성
+
+Bedrock AI가 채널 데이터(구독자, 업로드 빈도, 평균 조회수, 영상 길이, 점수 요인)를 기반으로 **정확히 3개**의 구체적 성장 가이드를 생성.
+
+### 관련 프로젝트
+
+- [crit-data-collector](https://github.com/AWS-Capstone8/crit-data-collector) — 데이터 수집 Lambda + 점수 모델 분석
+
+---
+
 ## ⚠️ 알려진 이슈 및 개선 예정
 
 - `/ai_script` 호출 시 `youtubeAPIService.getData()`가 중복 호출됨 → Redis 캐싱으로 개선 예정
@@ -508,6 +655,35 @@ src/main/java/com/capstone/crit/
 ---
 
 ## 변경 이력
+
+### 2026-05-04
+- **코멘트 프롬프트 개선**
+  - 채널명, 구독자 수를 프롬프트에 포함하여 채널 규모에 맞는 코멘트 생성
+  - 데이터 기반 템플릿 제거, AI 한 줄 코멘트로 통일
+
+- **CORS 설정 수정**
+  - `SecurityConfig`, `CorsConfig`에 `http://localhost:5173` 추가 (Vite 기본 포트)
+
+- **`percentileVideoAnalysis` 응답 필드 간소화**
+  - `vpsScore`, `engagementScore`, `likeRateScore`, `isShort`, `matched` 제거
+  - `videoId`, `title`, `thumbnailUrl`, `percentileScore`, `reason`만 응답
+  - 채널 평균 점수 계산은 내부 `ScoreResult`에서 직접 처리하도록 변경
+
+- **백분위 기반 점수 모델 추가 및 API 응답 재설계**
+  - `PercentileScoringService` 추가: S3에서 백분위 테이블 로드 + 점수 계산
+  - 89,000개 실제 영상 데이터 기반, 구독자 구간 × 숏폼/롱폼 × 카테고리별 분리 비교
+  - 1시간마다 S3에서 최신 테이블 자동 갱신 (`@Scheduled`)
+  - `ChannelAnalyzeService` 전면 수정
+    - `algorithmScore`, `recentVideos`, `improvedVideoAnalysis` 삭제
+    - `channelScore` 추가: 종합 점수 + 상위 % + AI 코멘트 + 구성 요인 3개
+    - `summary` 개선: 이전 분석 대비 변화율 (avgViewCountChange, uploadFrequencyChange, subscriberChange, subscriberChangePercent)
+    - `guides` 개선: Bedrock AI가 점수 데이터 기반으로 정확히 3개 가이드 생성
+    - `percentileVideoAnalysis` 추가: 영상별 백분위 점수 + 구성 요인 + 이유(reason)
+  - `ChannelCache` 엔티티 확장: 백분위 점수 4개 + 이전 평균조회수/업로드빈도 저장
+  - `VideoCache` 엔티티: `categoryId` 필드 추가
+  - `CritApplication`에 `@EnableScheduling` 추가
+  - `application.properties`에 `aws.s3.scoring-bucket` 설정 추가
+  - `build.gradle`에 .env 자동 로드 로직 추가
 
 ### 2026-04-24
 - **개선된 YouTube 성장 중심 알고리즘 추가**
