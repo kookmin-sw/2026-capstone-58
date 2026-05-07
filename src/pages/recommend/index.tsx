@@ -23,7 +23,7 @@ const RecommendPage = () => {
   return (
     <div>
       <Header />
-      <div className="flex flex-col items-center px-40 gap-10">
+      <div className="flex flex-col items-center px-10 gap-10">
         <div className="flex flex-col items-center mt-20 w-full mx-auto animate-fade-in-up">
           <div className="relative z-10 mb-[-32px]">
             <TabList tabs={['롱폼', '숏폼']} />

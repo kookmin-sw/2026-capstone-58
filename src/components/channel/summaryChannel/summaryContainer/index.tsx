@@ -57,7 +57,7 @@ const SummaryContainer = ({ label, value, changePercent }: SummaryContainerProps
             {formatValue(label, value)}
           </div>
           <div
-            className={`flex px-2 py-1 w-13 gap-0.5 justify-center items-center rounded-xl ${isUp ? 'bg-[#5AC46733]' : isDown ? 'bg-[#FFEFEF]' : 'bg-[#FFFCEF]'}`}
+            className={`flex px-2 py-1 w-13 gap-0.5 justify-center items-center rounded-xl ${isUp ? 'bg-[#DEF3E195]' : isDown ? 'bg-[#FFEFEF]' : 'bg-[#FFFCEF]'}`}
           >
             {isUp && <TriangleIcon className="w-2.5 h-2.5 text-[#5AC467]" />}
             {isDown && <TriangleIcon className="w-2.5 h-2.5 text-[#FF0000] rotate-180" />}
