@@ -113,7 +113,7 @@
     font-style: normal;
     font-weight: 500;
     line-height: 140%;
-    letter-spacing: 5px;
+    letter-spacing: 0.5px;
   }
 
   /* ===== 피그마에 없지만 사용 중 ===== */
@@ -142,6 +142,16 @@
     font-style: normal;
     font-weight: 500;
     line-height: 23px;
+    letter-spacing: 0;
+  }
+
+  /* typo-graph: 12px / regular / 0 / normal (Inter) - 그래프 축 라벨용 */
+  .typo-graph {
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
     letter-spacing: 0;
   }
 }
@@ -189,4 +199,50 @@
 
 .animate-loading-pulse {
   animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Slide animations */
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutToRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInFromRight 0.3s ease-out both;
+}
+
+.animate-slide-out-right {
+  animation: slideOutToRight 0.3s ease-out both;
+}
+
+.animate-slide-in-left {
+  animation: slideInFromLeft 0.3s ease-out both;
 }
