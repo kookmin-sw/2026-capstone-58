@@ -23,12 +23,12 @@ const Main = () => {
   }, [selectedKeyword]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-linear-to-br from-[#F5EFFF] via-white to-[#E8F4F8] relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-linear-to-br from-[#F5EFFF] via-white to-[#E8F4F8] relative">
       {/* 배경 장식 요소들 */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-[#9F8CFF] rounded-full opacity-10 blur-3xl" />
-      <div className="absolute top-40 right-20 w-96 h-96 bg-[#4ECDC4] rounded-full opacity-10 blur-3xl" />
-      <div className="absolute bottom-40 left-1/4 w-80 h-80 bg-[#FF6B6B] rounded-full opacity-10 blur-3xl" />
-      <div className="absolute bottom-20 right-10 w-64 h-64 bg-[#FFEAA7] rounded-full opacity-15 blur-3xl" />
+      <div className="absolute top-20 left-10 w-72 h-72 bg-[#9F8CFF] rounded-full opacity-10 blur-3xl pointer-events-none" />
+      <div className="absolute top-40 right-20 w-96 h-96 bg-[#4ECDC4] rounded-full opacity-10 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-40 left-1/4 w-80 h-80 bg-[#FF6B6B] rounded-full opacity-10 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 right-10 w-64 h-64 bg-[#FFEAA7] rounded-full opacity-15 blur-3xl pointer-events-none" />
 
       <Header />
       <div className="flex-1 flex flex-col w-full p-10 justify-center items-center relative z-10 gap-4 px-8">

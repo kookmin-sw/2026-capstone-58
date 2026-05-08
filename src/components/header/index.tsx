@@ -3,11 +3,13 @@ import LogoutIcon from '@/assets/icons/logout-icon.svg?react';
 import SettingIcon from '@/assets/icons/setting-icon.svg?react';
 import PersonIcon from '@/assets/icons/person-icon.svg?react';
 import CritLogo from '@/assets/icons/critLogo.svg?react';
+import useUserStore from '@/stores/useUserStore';
 
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const currentPath = location.pathname;
+  const channelName = useUserStore(s => s.channelName);
 
   return (
     <div className="sticky top-0 z-50 flex w-full h-20 justify-between items-center border-b border-[#dad9d9]/30 px-5 bg-white/70 backdrop-blur-md">
@@ -33,8 +35,9 @@ const Header = () => {
           <div className="text-black">트렌드</div>
         </div>
       </div>
-      <div className="flex w-40 h-9 justify-center items-center text-black typo-body2">
-        name님 어서오세요!
+      <div className="flex w-40 h-9 justify-center items-center">
+        <div className="text-[#6B4EFF] typo-body2">{channelName}</div>
+        <div className="text-black typo-body2">&nbsp;님 어서오세요!</div>
       </div>
       <div className="flex h-11 items-center justify-end gap-5">
         <LogoutIcon className="w-6 h-6" />
