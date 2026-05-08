@@ -4,6 +4,7 @@ import RecommendPage from '@/pages/recommend';
 import AnalysisPage from '@/pages/analysis';
 import LoginPage from '@/pages/login';
 import MainPage from '@/pages/main';
+import OAuthCallbackPage from '@/pages/oauthCallback';
 
 const Router = () => {
   return (
@@ -11,6 +12,7 @@ const Router = () => {
       <Routes>
         <Route index element={<LoginPage />} />
         <Route path="main" element={<MainPage />} />
+        <Route path="oauth-callback" element={<OAuthCallbackPage />} />
         <Route path="recommend" element={<RecommendPage />} />
         <Route path="analysis" element={<AnalysisPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
