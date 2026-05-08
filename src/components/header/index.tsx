@@ -1,41 +1,45 @@
-import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import LogoutIcon from '@/assets/icons/logout-icon.svg?react';
 import SettingIcon from '@/assets/icons/setting-icon.svg?react';
+import PersonIcon from '@/assets/icons/person-icon.svg?react';
 import CritLogo from '@/assets/icons/critLogo.svg?react';
 
 const Header = () => {
-  const [activeTab, setActiveTab] = useState<'recommend' | 'mypage'>('recommend');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname;
 
   return (
-    <div className="flex w-full h-27 justify-between border-b-2 border-[#A594F9] px-6.5">
-      <div className="flex items-center gap-12.5">
-        <CritLogo className="w-[159px] h-[77px]" />
-        <div className="flex items-center gap-5">
-          <div
-            className="flex w-35 h-12.5 py-2.5 justify-center items-center cursor-pointer"
-            onClick={() => setActiveTab('recommend')}
-          >
-            <div
-              className={`flex justify-center ${activeTab === 'recommend' ? 'text-[#6B4EFF] typo-title-bold' : 'text-black typo-title'}`}
-            >
-              영상 추천
-            </div>
-          </div>
-          <div
-            className="flex w-35 h-12.5 py-2.5 justify-center items-center cursor-pointer"
-            onClick={() => setActiveTab('mypage')}
-          >
-            <div
-              className={`flex justify-center ${activeTab === 'mypage' ? 'text-[#6B4EFF] typo-title-bold' : 'text-black typo-title'}`}
-            >
-              마이페이지
-            </div>
+    <div className="sticky top-0 z-50 flex w-full h-20 justify-between items-center border-b border-[#dad9d9] px-5 bg-white">
+      <CritLogo className="w-38 h-11" />
+      <div className="flex justify-center items-center gap-5 self-stretch">
+        <div
+          className="flex w-24 h-9 flex-col justify-center text-center cursor-pointer typo-body2"
+          onClick={() => navigate('/recommend')}
+        >
+          <div className={currentPath === '/recommend' ? 'text-[#6B4EFF]' : 'text-black'}>
+            영상추천
           </div>
         </div>
+        <div
+          className="flex w-24 h-9 flex-col justify-center text-center cursor-pointer typo-body2"
+          onClick={() => navigate('/analysis')}
+        >
+          <div className={currentPath === '/analysis' ? 'text-[#6B4EFF]' : 'text-black'}>
+            채널분석
+          </div>
+        </div>
+        <div className="flex w-24 h-9 flex-col justify-center text-center cursor-not-allowed typo-body2 opacity-40">
+          <div className="text-black">트렌드</div>
+        </div>
       </div>
-      <div className="flex items-center justify-between gap-8">
-        <LogoutIcon />
-        <SettingIcon />
+      <div className="flex w-40 h-9 justify-center items-center text-black typo-body2">
+        name님 어서오세요!
+      </div>
+      <div className="flex h-11 items-center justify-end gap-5">
+        <LogoutIcon className="w-6 h-6" />
+        <PersonIcon className="w-6 h-6" />
+        <SettingIcon className="w-6 h-6" />
       </div>
     </div>
   );
