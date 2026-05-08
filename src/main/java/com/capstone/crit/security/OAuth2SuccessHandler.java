@@ -19,9 +19,10 @@ import org.springframework.security.web.authentication.SimpleUrlAuthenticationSu
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Map;
-
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -84,8 +85,17 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             }
 
             String jwt = jwtTokenProvider.generateToken(user.getId());
+
+            String channelName = user.getYoutubeChannelTitle() != null ? user.getYoutubeChannelTitle() : "";
+            String channelUrl  = user.getYoutubeChannelId() != null
+                    ? "https://www.youtube.com/channel/" + user.getYoutubeChannelId() : "";
+
+            String target = redirectUrl + "?token=" + jwt
+                    + "&channelName=" + URLEncoder.encode(channelName, StandardCharsets.UTF_8)
+                    + "&channelUrl="  + URLEncoder.encode(channelUrl,  StandardCharsets.UTF_8);
+
             log.info("JWT 발급 완료, 리다이렉트: {}", redirectUrl);
-            getRedirectStrategy().sendRedirect(request, response, redirectUrl + "?token=" + jwt);
+            getRedirectStrategy().sendRedirect(request, response, target);
 
         } catch (Exception e) {
             log.error("OAuth2 성공 핸들러 처리 중 오류", e);
