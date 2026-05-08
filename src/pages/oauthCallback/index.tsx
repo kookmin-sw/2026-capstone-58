@@ -7,20 +7,26 @@ const OAuthCallbackPage = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
+    const channelName = params.get('channelName');
+    const channelId = params.get('channelId');
 
     if (token) {
-      // token 저장
-      localStorage.setItem('accessToken', token);
+      localStorage.setItem('token', token);
+      localStorage.removeItem('accessToken');
 
-      // 로그인 성공 후 추천 페이지로 이동
+      if (channelName) {
+        localStorage.setItem('channelName', channelName);
+      }
+      if (channelId) {
+        localStorage.setItem('channelId', channelId);
+      }
+
       navigate('/recommend');
     } else {
-      // token 없으면 로그인 페이지로 이동
       navigate('/');
     }
   }, [navigate]);
 
-  // 화면에 보여줄 UI 없음
   return null;
 };
 
