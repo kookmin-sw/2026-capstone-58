@@ -292,7 +292,164 @@ GET /analyze/channel?channel={channel}
 
 ---
 
-### 3. 영상 기획 및 제목 생성
+### 3. 영상 상세 분석
+
+특정 영상의 상세 분석 정보를 반환합니다. `/analyze/channel` 로 채널 분석 후 반환된 `videoId`로 호출합니다.
+YouTube Analytics API가 연동된 채널(본인 채널 로그인)의 경우 CTR, 시청 지속 시간, 추천 확장성 등 심화 데이터가 함께 반환됩니다.
+
+```
+GET /analyze/video/{videoId}
+```
+
+#### Path Variables
+
+| 필드 | 타입 | 설명 | 예시 |
+|------|------|------|------|
+| `videoId` | String | 유튜브 영상 ID | `dQw4w9WgXcQ` |
+
+#### Response
+
+```json
+{
+  "videoId": "dQw4w9WgXcQ",
+  "title": "구글 신제품 때문에 완전히 멘탈이 나가버린 유저들",
+  "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
+  "viewCount": 185000,
+  "likeCount": 4200,
+  "commentCount": 310,
+  "durationSeconds": 743,
+  "channelId": "UCxxx",
+  "channelName": "코딩애플",
+  "category": "과학/기술",
+
+  "score": {
+    "overall": 82,
+    "topPercent": 18
+  },
+
+  "factors": [
+    {
+      "name": "CTR",
+      "score": 76,
+      "rawValue": "9.3%",
+      "description": "노출 대비 클릭률"
+    },
+    {
+      "name": "시청 지속 시간",
+      "score": 88,
+      "rawValue": "257초 (유지율 73%)",
+      "description": "평균 시청 유지율"
+    },
+    {
+      "name": "추천 확장성",
+      "score": 22,
+      "rawValue": "13.5%",
+      "description": "추천 알고리즘을 통한 유입 비율"
+    }
+  ],
+
+  "audienceRetention": {
+    "curve": [
+      { "timeSeconds": 0, "retentionPercent": 100.0 },
+      { "timeSeconds": 37, "retentionPercent": 84.2 },
+      { "timeSeconds": 74, "retentionPercent": 71.5 }
+    ],
+    "avgWatchSeconds": 257,
+    "avgRetentionPercent": 73,
+    "mainDropOffSegment": {
+      "startSeconds": 11,
+      "endSeconds": 25,
+      "tip": "초반 후킹을 강화하면 더 많은 시청자를 붙잡을 수 있어요."
+    }
+  },
+
+  "insight": "클릭을 유도하는 썸네일과 제목 덕분에 유입이 높았고, 안정적인 시청 유지율로 추천 확장까지 잘 이루어진 영상입니다.",
+
+  "improvements": [
+    { "title": "초반 10초 후킹 강화", "description": "11초~25초 구간에서 이탈률이 평균보다 높습니다." },
+    { "title": "썸네일 메시지 명확화", "description": "현재 썸네일 대비 클릭률을 더 끌어올릴 여지가 있어요." }
+  ],
+
+  "recommendedActions": [
+    { "title": "비슷한 주제로 후속 영상 만들기", "description": "이 주제는 시청자 반응이 좋아요." },
+    { "title": "Shorts로 재가공하기", "description": "핵심 장면을 Shorts로 만들어 유입을 늘려보세요." },
+    { "title": "썸네일 A/B 테스트 진행하기", "description": "다른 버전의 썸네일로 CTR을 더 높여보세요." }
+  ],
+
+  "scoreBasis": [
+    "CTR이 채널 평균(6.1%) 대비 3.2% 높습니다. (9.3%)",
+    "평균 시청 지속 시간이 채널 평균(3:41) 대비 36초 더 깁니다.(4:17).",
+    "업로드 후 24시간 동안 조회수 성장률이 채널 평균 대비 18% 높습니다."
+  ],
+
+  "viewGrowthData": {
+    "video": [
+      { "day": 0, "views": 52000 },
+      { "day": 1, "views": 98000 },
+      { "day": 2, "views": 130000 },
+      { "day": 3, "views": 152000 },
+      { "day": 4, "views": 163000 },
+      { "day": 5, "views": 171000 },
+      { "day": 6, "views": 185000 }
+    ],
+    "channelAvg": [
+      { "day": 0, "avgViews": 31000 },
+      { "day": 1, "avgViews": 58000 },
+      { "day": 2, "avgViews": 79000 },
+      { "day": 3, "avgViews": 94000 },
+      { "day": 4, "avgViews": 104000 },
+      { "day": 5, "avgViews": 111000 },
+      { "day": 6, "avgViews": 117000 }
+    ]
+  },
+
+  "channelRank": {
+    "rank": 2,
+    "total": 10,
+    "betterThanPercent": 89
+  }
+}
+```
+
+#### 응답 필드 설명
+
+| 필드 | Analytics 필요 | 설명 |
+|------|:--------------:|------|
+| `videoId` | | 유튜브 영상 ID |
+| `title` | | 영상 제목 |
+| `thumbnailUrl` | | 썸네일 URL |
+| `viewCount` | | 조회수 |
+| `likeCount` | | 좋아요 수 |
+| `commentCount` | | 댓글 수 |
+| `durationSeconds` | | 영상 길이 (초) |
+| `channelId` | | 채널 ID |
+| `channelName` | | 채널명 |
+| `category` | | 영상 카테고리 (한국어) |
+| `score.overall` | | 백분위 종합 점수 (0~100) |
+| `score.topPercent` | | 상위 몇 % (100 - overall) |
+| `factors` | ✅ | CTR / 시청 지속 시간 / 추천 확장성 점수 + rawValue. Analytics 미연동 시 빈 배열 |
+| `factors[].score` | ✅ | 0~100 점수 |
+| `factors[].rawValue` | ✅ | 실제 수치 (예: `"9.3%"`, `"257초 (유지율 73%)"`) |
+| `audienceRetention` | ✅ | 시청자 유지율 곡선. Analytics 미연동 시 빈 객체 |
+| `audienceRetention.curve` | ✅ | `[{timeSeconds, retentionPercent}]` 시간별 유지율 |
+| `audienceRetention.avgWatchSeconds` | ✅ | 평균 시청 지속 시간 (초) |
+| `audienceRetention.avgRetentionPercent` | ✅ | 평균 유지율 (%) |
+| `audienceRetention.mainDropOffSegment` | ✅ | 가장 급격한 이탈 구간 + 개선 팁 |
+| `insight` | | AI 한 줄 분석 (Bedrock). Analytics 있으면 factor 데이터 반영, 없으면 백분위 기반 |
+| `improvements` | | AI 개선 포인트 2개 `[{title, description}]` (Bedrock) |
+| `recommendedActions` | | AI 추천 액션 3개 `[{title, description}]` (Bedrock) |
+| `scoreBasis` | ✅ | 점수 산정 근거 텍스트 배열 (채널 평균 대비 비교). Analytics 미연동 시 빈 배열 |
+| `viewGrowthData.video` | ✅ | 업로드 후 7일간 누적 조회수 `[{day, views}]`. `publishedAt` 없거나 Analytics 미연동 시 빈 배열 |
+| `viewGrowthData.channelAvg` | ✅ | 같은 기간 채널 전체 일별 조회수 ÷ 영상 수 `[{day, avgViews}]` |
+| `channelRank.rank` | | 채널 내 영상 순위 (최신순 1~10) |
+| `channelRank.total` | | 채널 내 전체 분석 영상 수 |
+| `channelRank.betterThanPercent` | | 채널 내 몇 %의 영상보다 점수가 높은지 |
+
+> **Analytics 필요** 표시된 필드는 해당 채널 소유자가 Google 로그인한 경우에만 값이 채워집니다. 미연동 시 빈 배열(`[]`) 또는 빈 객체(`{}`)로 반환됩니다.
+
+---
+
+### 4. 영상 기획 및 제목 생성
 
 채널 최신 영상을 직접 분석하여 발화자 말투와 스타일을 반영한 기획안과 추천 제목을 생성합니다.
 또한 기획안과 유사한 영상 3개와 유사한 유튜버 2명을 자동으로 검색하여 제공합니다.
