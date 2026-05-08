@@ -5,14 +5,18 @@ interface VideoItemProps {
   thumbnailUrl?: string;
   score: number;
   description: string;
+  onClick?: () => void;
 }
 
-const VideoItem = ({ title, thumbnailUrl, score, description }: VideoItemProps) => {
+const VideoItem = ({ title, thumbnailUrl, score, description, onClick }: VideoItemProps) => {
   const { fill } = getScoreColors(score);
 
   return (
-    <div className="flex w-full px-7.5 py-6 gap-7.5 self-stretch rounded-xl bg-white border hover:bg-[#F3F0FF] active:bg-[#F3F0FF] border-[#A594F9] hover:border-[#6B42FF] active:border-[#6B42FF]">
-      <div className="w-76 shrink-0 aspect-video rounded-lg overflow-hidden">
+    <div
+      className="flex w-full px-7.5 py-6 gap-7.5 self-stretch rounded-xl bg-white border hover:bg-[#F3F0FF] active:bg-[#F3F0FF] border-[#A594F9] hover:border-[#6B42FF] active:border-[#6B42FF] cursor-pointer"
+      onClick={onClick}
+    >
+      <div className="w-76 shrink-0 aspect-video rounded-xl overflow-hidden">
         {thumbnailUrl ? (
           <img src={thumbnailUrl} alt={title} className="w-full h-full object-cover" />
         ) : (

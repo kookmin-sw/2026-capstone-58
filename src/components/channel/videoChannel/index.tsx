@@ -1,9 +1,20 @@
 import VideoItem from './videoItem';
 import useChannelStore from '@/stores/useChannelStore';
+import useCurrentVideoStore from '@/stores/useCurrentVideoStore';
 
-const VideoChannel = () => {
+interface VideoChannelProps {
+  onVideoClick?: () => void;
+}
+
+const VideoChannel = ({ onVideoClick }: VideoChannelProps) => {
   const data = useChannelStore(s => s.data);
+  const setVideo = useCurrentVideoStore(s => s.setVideo);
   const videos = data?.percentileVideoAnalysis ?? [];
+
+  const handleVideoClick = (video: (typeof videos)[0]) => {
+    setVideo(video);
+    onVideoClick?.();
+  };
 
   return (
     <div className="flex flex-col w-full justify-center items-center">
@@ -25,6 +36,7 @@ const VideoChannel = () => {
                 thumbnailUrl={v.thumbnailUrl}
                 score={v.percentileScore}
                 description={v.reason}
+                onClick={() => handleVideoClick(v)}
               />
             ))
           ) : (

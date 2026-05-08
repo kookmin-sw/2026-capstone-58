@@ -1,6 +1,6 @@
 import CircleProgress from './circleProgress';
 import ScoreContainer from './scoreContainer';
-import BulbIcon from '@/assets/icons/score-icons/bulb-icon.svg?react';
+import BulbIcon from '@/assets/icons/score-icons/normal-bulb-icon.svg?react';
 import useChannelStore from '@/stores/useChannelStore';
 
 const AlgorithmScore = () => {
