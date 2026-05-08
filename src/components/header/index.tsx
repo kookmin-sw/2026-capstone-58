@@ -10,8 +10,8 @@ const Header = () => {
   const currentPath = location.pathname;
 
   return (
-    <div className="sticky top-0 z-50 flex w-full h-20 justify-between items-center border-b border-[#dad9d9] px-5 bg-white">
-      <CritLogo className="w-38 h-11" />
+    <div className="sticky top-0 z-50 flex w-full h-20 justify-between items-center border-b border-[#dad9d9]/30 px-5 bg-white/70 backdrop-blur-md">
+      <CritLogo className="w-38 h-11 cursor-pointer" onClick={() => navigate('/main')} />
       <div className="flex justify-center items-center gap-5 self-stretch">
         <div
           className="flex w-24 h-9 flex-col justify-center text-center cursor-pointer typo-body2"
