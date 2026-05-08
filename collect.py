@@ -1,101 +1,27 @@
 """
-YouTube 채널 데이터 수집기
-- channels.list (1유닛): 채널 메타 정보
-- playlistItems.list (1유닛): 영상 ID 목록
-- videos.list (1유닛): 영상 상세 정보 (50개 배치)
-= 채널당 3유닛, 하루 ~3,300채널 수집 가능
+YouTube 채널 데이터 수집기 (로컬용)
+- 채널당 3유닛 (channels + playlistItems + videos)
+- CSV 저장
 """
 
 import csv
 import os
-import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
-import requests
 from dotenv import load_dotenv
+
+from youtube_api import (
+    CATEGORIES, get_channel, get_video_ids, get_videos,
+    resolve_channel_id, discover_channels,
+)
 
 load_dotenv()
 
 API_KEY = os.getenv("YOUTUBE_API_KEY")
-BASE = "https://www.googleapis.com/youtube/v3"
 DATA_DIR = Path(__file__).parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
-
-
-# ── YouTube API 호출 ──────────────────────────────────────────────
-
-def get_channel(channel_input: str) -> dict | None:
-    """channels.list — 1유닛. @handle, 채널ID, URL 모두 지원."""
-    channel_id = _resolve_channel_id(channel_input)
-    if not channel_id:
-        return None
-    r = requests.get(f"{BASE}/channels", params={
-        "key": API_KEY,
-        "id": channel_id,
-        "part": "snippet,statistics,contentDetails",
-    }).json()
-    if not r.get("items"):
-        return None
-    item = r["items"][0]
-    stats = item["statistics"]
-    return {
-        "channel_id": item["id"],
-        "channel_title": item["snippet"]["title"],
-        "subscriber_count": int(stats.get("subscriberCount", 0)),
-        "total_view_count": int(stats.get("viewCount", 0)),
-        "video_count": int(stats.get("videoCount", 0)),
-        "created_at": item["snippet"]["publishedAt"],
-        "uploads_playlist": item["contentDetails"]["relatedPlaylists"]["uploads"],
-    }
-
-
-def get_video_ids(uploads_playlist: str, max_results: int = 50) -> list[str]:
-    """playlistItems.list — 1유닛. 최근 영상 ID 최대 50개."""
-    r = requests.get(f"{BASE}/playlistItems", params={
-        "key": API_KEY,
-        "playlistId": uploads_playlist,
-        "part": "contentDetails",
-        "maxResults": min(max_results, 50),
-    }).json()
-    return [item["contentDetails"]["videoId"] for item in r.get("items", [])]
-
-
-def get_videos(video_ids: list[str]) -> list[dict]:
-    """videos.list — 1유닛 (최대 50개 배치). 영상 상세 정보."""
-    if not video_ids:
-        return []
-    r = requests.get(f"{BASE}/videos", params={
-        "key": API_KEY,
-        "id": ",".join(video_ids),
-        "part": "snippet,statistics,contentDetails,topicDetails",
-    }).json()
-    now = datetime.now(timezone.utc)
-    videos = []
-    for item in r.get("items", []):
-        stats = item["statistics"]
-        published = datetime.fromisoformat(item["snippet"]["publishedAt"].replace("Z", "+00:00"))
-        days_since = max((now - published).days, 1)
-        views = int(stats.get("viewCount", 0))
-        likes = int(stats.get("likeCount", 0))
-        comments = int(stats.get("commentCount", 0))
-        duration_sec = _parse_duration(item["contentDetails"].get("duration", "PT0S"))
-        topics = item.get("topicDetails", {}).get("topicCategories", [])
-        videos.append({
-            "video_id": item["id"],
-            "title": item["snippet"]["title"],
-            "published_at": item["snippet"]["publishedAt"],
-            "days_since_upload": days_since,
-            "category_id": item["snippet"].get("categoryId", ""),
-            "duration_sec": duration_sec,
-            "view_count": views,
-            "like_count": likes,
-            "comment_count": comments,
-            "tags": "|".join(item["snippet"].get("tags", [])),
-            "topic_categories": "|".join(topics),
-        })
-    return videos
 
 
 # ── 파생 지표 계산 ────────────────────────────────────────────────
@@ -118,9 +44,8 @@ def compute_metrics(channel: dict, videos: list[dict]) -> list[dict]:
         return []
     subs = channel["subscriber_count"] or 1
 
-    # 숏폼/롱폼 분류 (60초 기준)
+    # 숏폼/롱폼 분류
     for v in videos:
-        v["is_short"] = 1 if v["duration_sec"] < 60 else 0
         dur = v["duration_sec"]
         v["duration_category"] = ("short" if dur < 60 else
                                   "medium" if dur < 600 else
@@ -195,91 +120,27 @@ def save_csv(videos: list[dict], filepath: Path):
         writer.writerows(videos)
 
 
-# ── mostPopular로 카테고리별 채널 추출 ─────────────────────────────
-
-CATEGORIES = {
-    "1": "Film & Animation", "2": "Autos & Vehicles", "10": "Music",
-    "15": "Pets & Animals", "17": "Sports", "19": "Travel & Events",
-    "20": "Gaming", "22": "People & Blogs", "23": "Comedy",
-    "24": "Entertainment", "25": "News & Politics", "26": "Howto & Style",
-    "27": "Education", "28": "Science & Technology",
-}
-
-
-def discover_channels(category_id: str, region: str = "KR", max_pages: int = 4) -> list[str]:
-    """mostPopular 영상에서 유니크 채널 ID 추출. 페이지당 1유닛."""
-    channel_ids = set()
-    page_token = None
-    for page in range(max_pages):
-        params = {
-            "key": API_KEY,
-            "chart": "mostPopular",
-            "videoCategoryId": category_id,
-            "regionCode": region,
-            "part": "snippet",
-            "maxResults": 50,
-        }
-        if page_token:
-            params["pageToken"] = page_token
-        r = requests.get(f"{BASE}/videos", params=params).json()
-        for item in r.get("items", []):
-            channel_ids.add(item["snippet"]["channelId"])
-        page_token = r.get("nextPageToken")
-        if not page_token:
-            break
-    return list(channel_ids)
-
-
-# ── 유틸 ──────────────────────────────────────────────────────────
-
-def _resolve_channel_id(channel_input: str) -> str | None:
-    """@handle, URL, 채널ID → 채널ID로 변환."""
-    s = channel_input.strip().rstrip("/")
-    # URL에서 추출
-    if "youtube.com" in s:
-        if "/@" in s:
-            s = "@" + s.split("/@")[-1]
-        elif "/channel/" in s:
-            return s.split("/channel/")[-1].split("/")[0]
-    # @handle → API로 채널ID 조회
-    if s.startswith("@"):
-        r = requests.get(f"{BASE}/channels", params={
-            "key": API_KEY, "forHandle": s, "part": "id",
-        }).json()
-        items = r.get("items", [])
-        return items[0]["id"] if items else None
-    # 이미 채널ID
-    if s.startswith("UC") and len(s) == 24:
-        return s
-    return None
-
-
-def _parse_duration(iso: str) -> int:
-    """PT1H2M30S → 초 변환."""
-    m = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", iso)
-    if not m:
-        return 0
-    h, mi, s = (int(x) if x else 0 for x in m.groups())
-    return h * 3600 + mi * 60 + s
-
-
 # ── 메인 ──────────────────────────────────────────────────────────
 
 def collect_channel(channel_input: str) -> list[dict]:
     """채널 1개 수집 (3유닛). 수집 결과 반환 + CSV 저장."""
     print(f"[1/3] 채널 정보 조회: {channel_input}")
-    channel = get_channel(channel_input)
-    if not channel:
+    channel_id = resolve_channel_id(API_KEY, channel_input)
+    if not channel_id:
         print(f"  ✗ 채널을 찾을 수 없습니다: {channel_input}")
+        return []
+    channel = get_channel(API_KEY, channel_id)
+    if not channel:
+        print(f"  ✗ 채널 정보를 가져올 수 없습니다: {channel_input}")
         return []
     print(f"  ✓ {channel['channel_title']} (구독자 {channel['subscriber_count']:,})")
 
     print(f"[2/3] 영상 ID 목록 조회...")
-    video_ids = get_video_ids(channel["uploads_playlist"])
+    video_ids = get_video_ids(API_KEY, channel["uploads_playlist"])
     print(f"  ✓ {len(video_ids)}개 영상 발견")
 
     print(f"[3/3] 영상 상세 정보 조회...")
-    videos = get_videos(video_ids)
+    videos = get_videos(API_KEY, video_ids, include_details=True)
     print(f"  ✓ {len(videos)}개 영상 데이터 수집 완료")
 
     videos = compute_metrics(channel, videos)
@@ -297,10 +158,7 @@ def main():
         print("YOUTUBE_API_KEY가 설정되지 않았습니다. .env 파일을 확인하세요.")
         sys.exit(1)
 
-    # 인자로 채널 목록 전달, 없으면 예시 채널
-    channels = sys.argv[1:] or [
-        "@MBCentertainment",  # 예시: MBC 엔터테인먼트
-    ]
+    channels = sys.argv[1:] or ["@MBCentertainment"]
 
     total_videos = 0
     for ch in channels:

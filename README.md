@@ -321,9 +321,10 @@ python3 collect_all.py 20 28    # 특정 카테고리만
 
 ```
 youtube-data-collector/
+├── youtube_api.py      # YouTube API 공통 모듈 (채널/영상 조회, 유틸)
 ├── lambda_function.py  # Lambda 함수 (수집 → 백분위 계산 → S3 저장)
-├── lambda-deploy.zip   # Lambda 배포 패키지
-├── collect.py          # 로컬 수집 모듈 (API 호출, 지표 계산, CSV 저장)
+├── lambda-deploy.zip   # Lambda 배포 패키지 (lambda_function.py + youtube_api.py + requests)
+├── collect.py          # 로컬 수집 모듈 (파생 지표 계산, CSV 저장)
 ├── collect_all.py      # 로컬 전체 카테고리 일괄 수집
 ├── channels.json       # 수동 채널 목록 (선택)
 ├── data/               # 로컬 수집 CSV 데이터
