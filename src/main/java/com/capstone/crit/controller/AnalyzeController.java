@@ -23,4 +23,12 @@ public class AnalyzeController {
             @RequestParam String channel) {
         return ResponseEntity.ok(channelAnalyzeService.analyzeByInput(channel));
     }
+
+    @Operation(summary = "영상 상세 분석", description = "영상 ID로 상세 분석 정보를 반환합니다.")
+    @GetMapping("/video/{videoId}")
+    public ResponseEntity<Map<String, Object>> analyzeVideo(
+            @Parameter(description = "유튜브 영상 ID", example = "dQw4w9WgXcQ")
+            @PathVariable String videoId) {
+        return ResponseEntity.ok(channelAnalyzeService.getVideoDetail(videoId));
+    }
 }
