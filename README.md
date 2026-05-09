@@ -311,63 +311,79 @@ GET /analyze/video/{videoId}
 
 ```json
 {
-  "videoId": "dQw4w9WgXcQ",
-  "title": "구글 신제품 때문에 완전히 멘탈이 나가버린 유저들",
-  "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-  "viewCount": 185000,
+  "videoInfo": {
+    "videoId": "dQw4w9WgXcQ",
+    "title": "구글 신제품 때문에 완전히 멘탈이 나가버린 유저들",
+    "thumbnailUrl": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
+    "viewCount": 185000,
+    "uploadDate": "2024-03-15",
+    "category": "과학/기술",
+    "durationSeconds": 743,
+    "score": {
+      "overall": 82,
+      "topPercent": 18,
+      "description": "이 영상은 클릭률과 시청 유지율이 높아 추천 확장성이 우수한 콘텐츠입니다."
+    }
+  },
+
   "likeCount": 4200,
   "commentCount": 310,
-  "durationSeconds": 743,
   "channelId": "UCxxx",
   "channelName": "코딩애플",
-  "category": "과학/기술",
-
-  "score": {
-    "overall": 82,
-    "topPercent": 18
-  },
 
   "factors": [
     {
       "name": "CTR",
       "score": 76,
+      "topPercent": 24,
       "rawValue": "9.3%",
-      "description": "노출 대비 클릭률"
+      "changePercent": 52.5,
+      "description": "클릭을 유도하는 썸네일 구성 덕분에, 알고리즘 노출이 실질적인 시청자 유입으로 이어지고 있습니다."
     },
     {
       "name": "시청 지속 시간",
       "score": 88,
+      "topPercent": 12,
       "rawValue": "257초 (유지율 73%)",
-      "description": "평균 시청 유지율"
+      "changePercent": 18.3,
+      "description": "높은 시청 유지율을 보이고 있으며, 콘텐츠의 흐름과 편집이 시청자를 효과적으로 붙잡고 있습니다."
     },
     {
       "name": "추천 확장성",
       "score": 22,
+      "topPercent": 78,
       "rawValue": "13.5%",
-      "description": "추천 알고리즘을 통한 유입 비율"
+      "changePercent": -55.0,
+      "description": "아직 알고리즘의 선택을 많이 받지 못하고 있으니, CTR부터 개선해 노출당 클릭을 높이는 것이 추천 확장성을 끌어올리는 첫 번째 단계입니다."
     }
   ],
 
   "audienceRetention": {
-    "curve": [
-      { "timeSeconds": 0, "retentionPercent": 100.0 },
-      { "timeSeconds": 37, "retentionPercent": 84.2 },
-      { "timeSeconds": 74, "retentionPercent": 71.5 }
+    "sections": [
+      { "timeSeconds": 0,   "label": "0분",  "retentionPercent": 100.0 },
+      { "timeSeconds": 148, "label": "2분",  "retentionPercent": 84.2 },
+      { "timeSeconds": 297, "label": "4분",  "retentionPercent": 71.5 },
+      { "timeSeconds": 446, "label": "7분",  "retentionPercent": 58.3 },
+      { "timeSeconds": 594, "label": "9분",  "retentionPercent": 44.1 },
+      { "timeSeconds": 743, "label": "12분", "retentionPercent": 30.2 }
     ],
     "avgWatchSeconds": 257,
     "avgRetentionPercent": 73,
     "mainDropOffSegment": {
       "startSeconds": 11,
       "endSeconds": 25,
-      "tip": "초반 후킹을 강화하면 더 많은 시청자를 붙잡을 수 있어요."
+      "startLabel": "0:11",
+      "endLabel": "0:25",
+      "sectionLabel": "0분~2분",
+      "description": "초반 후킹을 강화하면 더 많은 시청자를 붙잡을 수 있어요."
     }
   },
 
   "insight": "클릭을 유도하는 썸네일과 제목 덕분에 유입이 높았고, 안정적인 시청 유지율로 추천 확장까지 잘 이루어진 영상입니다.",
 
   "improvements": [
-    { "title": "초반 10초 후킹 강화", "description": "11초~25초 구간에서 이탈률이 평균보다 높습니다." },
-    { "title": "썸네일 메시지 명확화", "description": "현재 썸네일 대비 클릭률을 더 끌어올릴 여지가 있어요." }
+    { "title": "초반 후킹이 약해요", "description": "11초~25초 구간에서 이탈률이 평균보다 높습니다." },
+    { "title": "썸네일에 핵심 메시지가 더 명확할 수 있어요.", "description": "현재 썸네일 대비 클릭률을 더 끌어올릴 여지가 있어요." }
   ],
 
   "recommendedActions": [
@@ -390,7 +406,8 @@ GET /analyze/video/{videoId}
       { "day": 3, "views": 152000 },
       { "day": 4, "views": 163000 },
       { "day": 5, "views": 171000 },
-      { "day": 6, "views": 185000 }
+      { "day": 6, "views": 180000 },
+      { "day": 7, "views": 185000 }
     ],
     "channelAvg": [
       { "day": 0, "avgViews": 31000 },
@@ -399,7 +416,8 @@ GET /analyze/video/{videoId}
       { "day": 3, "avgViews": 94000 },
       { "day": 4, "avgViews": 104000 },
       { "day": 5, "avgViews": 111000 },
-      { "day": 6, "avgViews": 117000 }
+      { "day": 6, "avgViews": 116000 },
+      { "day": 7, "avgViews": 120000 }
     ]
   },
 
@@ -415,32 +433,42 @@ GET /analyze/video/{videoId}
 
 | 필드 | Analytics 필요 | 설명 |
 |------|:--------------:|------|
-| `videoId` | | 유튜브 영상 ID |
-| `title` | | 영상 제목 |
-| `thumbnailUrl` | | 썸네일 URL |
-| `viewCount` | | 조회수 |
+| `videoInfo.videoId` | | 유튜브 영상 ID |
+| `videoInfo.title` | | 영상 제목 |
+| `videoInfo.thumbnailUrl` | | 썸네일 URL |
+| `videoInfo.viewCount` | | 조회수 |
+| `videoInfo.uploadDate` | | 업로드 날짜 (yyyy-MM-dd, null 가능) |
+| `videoInfo.category` | | 영상 카테고리 (한국어) |
+| `videoInfo.durationSeconds` | | 영상 길이 (초) |
+| `videoInfo.score.overall` | | 백분위 종합 점수 (0~100) |
+| `videoInfo.score.topPercent` | | 상위 몇 % (100 - overall) |
+| `videoInfo.score.description` | | 점수대별 설명 문장 (5구간: 90+/80+/65+/50+/그 이하) |
 | `likeCount` | | 좋아요 수 |
 | `commentCount` | | 댓글 수 |
-| `durationSeconds` | | 영상 길이 (초) |
 | `channelId` | | 채널 ID |
 | `channelName` | | 채널명 |
-| `category` | | 영상 카테고리 (한국어) |
-| `score.overall` | | 백분위 종합 점수 (0~100) |
-| `score.topPercent` | | 상위 몇 % (100 - overall) |
-| `factors` | ✅ | CTR / 시청 지속 시간 / 추천 확장성 점수 + rawValue. Analytics 미연동 시 빈 배열 |
+| `factors` | ✅ | CTR / 시청 지속 시간 / 추천 확장성 카드 3개. Analytics 미연동 시 빈 배열 |
 | `factors[].score` | ✅ | 0~100 점수 |
-| `factors[].rawValue` | ✅ | 실제 수치 (예: `"9.3%"`, `"257초 (유지율 73%)"`) |
-| `audienceRetention` | ✅ | 시청자 유지율 곡선. Analytics 미연동 시 빈 객체 |
-| `audienceRetention.curve` | ✅ | `[{timeSeconds, retentionPercent}]` 시간별 유지율 |
+| `factors[].topPercent` | ✅ | 상위 몇 % (100 - score) |
+| `factors[].rawValue` | ✅ | 실제 측정값 (예: `"9.3%"`, `"257초 (유지율 73%)"`) |
+| `factors[].changePercent` | ✅ | 채널 평균 대비 변화율 (%). CTR·시청지속시간은 채널 Analytics 평균, 추천 확장성은 업계 평균 30% 기준 |
+| `factors[].description` | ✅ | 점수대별 설명 문장 (5구간, 각 지표별 다른 문장 구조) |
+| `audienceRetention` | ✅ | 시청자 유지율 분석. Analytics 미연동 시 빈 객체 |
+| `audienceRetention.sections` | ✅ | 영상 길이 5등분 기준 6개 포인트 `[{timeSeconds, label, retentionPercent}]` |
+| `audienceRetention.sections[].label` | ✅ | 구간 시간 레이블 (예: `"0분"`, `"5분"`, `"25분"`) |
+| `audienceRetention.sections[].retentionPercent` | ✅ | 해당 시점 시청 유지율 (%) — Analytics API 실측값 |
 | `audienceRetention.avgWatchSeconds` | ✅ | 평균 시청 지속 시간 (초) |
 | `audienceRetention.avgRetentionPercent` | ✅ | 평균 유지율 (%) |
-| `audienceRetention.mainDropOffSegment` | ✅ | 가장 급격한 이탈 구간 + 개선 팁 |
-| `insight` | | AI 한 줄 분석 (Bedrock). Analytics 있으면 factor 데이터 반영, 없으면 백분위 기반 |
-| `improvements` | | AI 개선 포인트 2개 `[{title, description}]` (Bedrock) |
-| `recommendedActions` | | AI 추천 액션 3개 `[{title, description}]` (Bedrock) |
-| `scoreBasis` | ✅ | 점수 산정 근거 텍스트 배열 (채널 평균 대비 비교). Analytics 미연동 시 빈 배열 |
-| `viewGrowthData.video` | ✅ | 업로드 후 7일간 누적 조회수 `[{day, views}]`. `publishedAt` 없거나 Analytics 미연동 시 빈 배열 |
-| `viewGrowthData.channelAvg` | ✅ | 같은 기간 채널 전체 일별 조회수 ÷ 영상 수 `[{day, avgViews}]` |
+| `audienceRetention.mainDropOffSegment.startLabel` | ✅ | 주요 이탈 구간 시작 (예: `"0:11"`) |
+| `audienceRetention.mainDropOffSegment.endLabel` | ✅ | 주요 이탈 구간 끝 (예: `"0:25"`) |
+| `audienceRetention.mainDropOffSegment.sectionLabel` | ✅ | 해당 구간이 속하는 5등분 섹션 (예: `"0분~5분"`) |
+| `audienceRetention.mainDropOffSegment.description` | ✅ | 초반/중반/후반 3단계 개선 안내 문장 |
+| `insight` | | AI 한 줄 분석 (Bedrock) — 영상 제목 + 점수 + factor 데이터 기반 |
+| `improvements` | | AI 개선 포인트 2개 `[{title, description}]` (Bedrock) — 이탈 구간 + 최저 지표 기반 |
+| `recommendedActions` | | AI 추천 액션 3개 `[{title, description}]` (Bedrock) — 전체 분석 데이터 기반 |
+| `scoreBasis` | ✅ | 점수 산정 근거 3개 문장 (Analytics 실측값 기반 템플릿). 미연동 시 빈 배열 |
+| `viewGrowthData.video` | ✅ | 업로드 후 0~7일 누적 조회수 `[{day, views}]` (8개). 미연동 시 빈 배열 |
+| `viewGrowthData.channelAvg` | ✅ | 같은 기간 채널 전체 일별 조회수 ÷ 영상 수 `[{day, avgViews}]` (8개) |
 | `channelRank.rank` | | 채널 내 영상 순위 (최신순 1~10) |
 | `channelRank.total` | | 채널 내 전체 분석 영상 수 |
 | `channelRank.betterThanPercent` | | 채널 내 몇 %의 영상보다 점수가 높은지 |
