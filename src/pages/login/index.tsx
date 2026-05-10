@@ -1,9 +1,36 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CritLogo from '@/assets/icons/critLogo.svg?react';
 import GoogleIcon from '@/assets/icons/google-icon.svg?react';
+import useUserStore from '@/stores/useUserStore';
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const setUser = useUserStore(s => s.setUser);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    console.log('전체 파라미터:', Object.fromEntries(params));
+
+    const token = params.get('token');
+    const channelName = params.get('channelName');
+    const channelURL = params.get('channelURL');
+
+    if (token) {
+      localStorage.setItem('token', token);
+      setUser(channelName, channelURL);
+      navigate('/');
+    }
+  }, [navigate, setUser]);
+
   const handleGoogleLogin = () => {
     window.location.href = `${import.meta.env.VITE_SERVER_URL}/oauth2/authorization/google`;
+  };
+
+  const handleMockLogin = () => {
+    localStorage.setItem('token', 'mock-jwt-token-for-development');
+    setUser('CRiT', 'https://www.youtube.com/@CRiT');
+    navigate('/');
   };
 
   return (
@@ -64,6 +91,16 @@ const LoginPage = () => {
               <GoogleIcon className="w-6 h-6" />
             </div>
           </button>
+
+          {import.meta.env.VITE_USE_MOCK === 'true' && (
+            <button
+              type="button"
+              onClick={handleMockLogin}
+              className="flex h-[54px] px-2 py-4 justify-center items-center self-stretch rounded-[10px] border border-dashed border-gray-400 bg-gray-100 cursor-pointer"
+            >
+              <span className="text-gray-600 text-[16px] font-medium">🧪 개발자 로그인</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
