@@ -10,24 +10,28 @@ import DetailAnalysis from '@/pages/analysis/detailAnalysis';
 import { getChannelAnalysis } from '@/api/command';
 import useChannelStore from '@/stores/useChannelStore';
 import useCurrentVideoStore from '@/stores/useCurrentVideoStore';
+import useUserStore from '@/stores/useUserStore';
 
 const AnalysisPage = () => {
   const setData = useChannelStore(s => s.setData);
   const clearVideo = useCurrentVideoStore(s => s.clear);
+  const channelURL = useUserStore(s => s.channelURL);
   const [showDetail, setShowDetail] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right');
 
   useEffect(() => {
     const fetchData = async () => {
+      const url = channelURL;
+      if (!url) return;
       try {
-        const res = await getChannelAnalysis('https://www.youtube.com/@T1_Faker');
+        const res = await getChannelAnalysis(url);
         setData(res);
       } catch (err) {
         console.error('채널 분석 요청 실패:', err);
       }
     };
     fetchData();
-  }, [setData]);
+  }, [setData, channelURL]);
 
   const handleVideoClick = () => {
     setSlideDirection('right');

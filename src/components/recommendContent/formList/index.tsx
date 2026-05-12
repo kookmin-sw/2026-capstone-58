@@ -25,12 +25,13 @@ const categories = [
 
 interface FormListProps {
   onSearch?: () => void;
+  initialKeyword?: string;
 }
 
-const FormList = ({ onSearch }: FormListProps) => {
+const FormList = ({ onSearch, initialKeyword = '' }: FormListProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState(initialKeyword);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [time, setTime] = useState(0);
