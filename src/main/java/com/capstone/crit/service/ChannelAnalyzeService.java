@@ -606,10 +606,6 @@ public class ChannelAnalyzeService {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("videoInfo", videoInfo);
-        result.put("likeCount", video.getLikeCount());
-        result.put("commentCount", video.getCommentCount());
-        result.put("channelId", video.getChannelId());
-        result.put("channelName", channel.getChannelName());
 
         // Analytics API로 CTR, 시청 지속 시간, 추천 확장성 조회
         List<Map<String, Object>> factors = new ArrayList<>();
