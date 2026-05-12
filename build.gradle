@@ -25,8 +25,15 @@ repositories {
 }
 
 dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa' // jpa추가
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'//swagger 추가
+
+	implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	annotationProcessor 'org.projectlombok:lombok'
@@ -34,15 +41,41 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-	// AWS Bedrock
+	// AWS Bedrock + S3
 	implementation platform('software.amazon.awssdk:bom:2.25.0')
 	implementation 'software.amazon.awssdk:bedrockruntime'
+	implementation 'software.amazon.awssdk:s3'
 	implementation 'software.amazon.awssdk:sts'
+
+	// Webflux (for Imagen)
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
 	// JSON
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
+
+	// GCP JWT (for Imagen)
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+	
+	runtimeOnly 'com.mysql:mysql-connector-j'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// .env 파일 자동 로드 → bootRun에 환경변수 주입
+tasks.named('bootRun') {
+	def envFile = file('api_env/.env')
+	if (envFile.exists()) {
+		envFile.readLines().each { line ->
+			if (line && !line.startsWith('#') && line.contains('=')) {
+				def parts = line.split('=', 2)
+				def key = parts[0].trim()
+				def value = parts.length > 1 ? parts[1].trim().replaceAll(/^["']|["']$/, '') : ''
+				environment key, value
+			}
+		}
+	}
 }

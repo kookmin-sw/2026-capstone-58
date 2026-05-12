@@ -15,9 +15,9 @@ public class BedrockController {
 
     private final BedrockService bedrockService;
 
-    @PostMapping("/trend")
-    public ResponseEntity<Map<String, String>> analyzeTrend(@RequestBody TrendRequest request) {
-        String result = bedrockService.analyzeTrend(request.getCategory(), request.getKeywords());
-        return ResponseEntity.ok(Map.of("result", result));
-    }
+    //@PostMapping("/trend")
+    //public ResponseEntity<Map<String, String>> analyzeTrend(@RequestBody TrendRequest request) {
+    //    String result = bedrockService.analyzeTrend(request.getCategory(), request.getKeywords());
+    //    return ResponseEntity.ok(Map.of("result", result));
+    //}
 }
