@@ -10,7 +10,6 @@ const LoginPage = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    console.log('전체 파라미터:', Object.fromEntries(params));
 
     const token = params.get('token');
     const channelName = params.get('channelName');
@@ -24,7 +23,7 @@ const LoginPage = () => {
   }, [navigate, setUser]);
 
   const handleGoogleLogin = () => {
-    window.location.href = `${import.meta.env.VITE_SERVER_URL}/oauth2/authorization/google`;
+    window.location.href = `${import.meta.env.VITE_AUTH_URL}/oauth2/authorization/google`;
   };
 
   const handleMockLogin = () => {

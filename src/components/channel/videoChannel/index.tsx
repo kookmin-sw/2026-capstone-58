@@ -8,11 +8,11 @@ interface VideoChannelProps {
 
 const VideoChannel = ({ onVideoClick }: VideoChannelProps) => {
   const data = useChannelStore(s => s.data);
-  const setVideo = useCurrentVideoStore(s => s.setVideo);
+  const setVideoId = useCurrentVideoStore(s => s.setVideoId);
   const videos = data?.percentileVideoAnalysis ?? [];
 
   const handleVideoClick = (video: (typeof videos)[0]) => {
-    setVideo(video);
+    setVideoId(video.videoId);
     onVideoClick?.();
   };
 

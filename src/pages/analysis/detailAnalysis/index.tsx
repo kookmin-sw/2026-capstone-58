@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import ArrowLeftIcon from '@/assets/icons/score-icons/video-detail/arrow-left-icon.svg?react';
 import VideoInfo from '@/components/videoDetail/videoInfo';
 import DetailScore from '@/components/videoDetail/detailScore';
@@ -7,12 +8,34 @@ import ViewingTimeCard from '@/components/videoDetail/viewingTimeCard';
 import ImprovementPointCard from '@/components/videoDetail/improvementPointCard';
 import RecommendActionCard from '@/components/videoDetail/recommendActionCard';
 import RecommendContent from '@/components/videoDetail/recommendContent';
+import useCurrentVideoStore from '@/stores/useCurrentVideoStore';
+import { getVideoAnalysis } from '@/api/command';
 
 interface DetailAnalysisProps {
   onBack: () => void;
 }
 
 const DetailAnalysis = ({ onBack }: DetailAnalysisProps) => {
+  const videoId = useCurrentVideoStore(s => s.videoId);
+  const setVideoAnalysis = useCurrentVideoStore(s => s.setVideoAnalysis);
+  const setLoading = useCurrentVideoStore(s => s.setLoading);
+
+  useEffect(() => {
+    const fetchVideoAnalysis = async () => {
+      if (!videoId) return;
+      setLoading(true);
+      try {
+        const res = await getVideoAnalysis(videoId);
+        setVideoAnalysis(res);
+      } catch (err) {
+        console.error('영상 분석 요청 실패:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchVideoAnalysis();
+  }, [videoId, setVideoAnalysis, setLoading]);
+
   return (
     <div className="flex flex-col w-full items-center gap-6 p-10 bg-[#F5EFFF] animate-slide-in-right">
       <div
