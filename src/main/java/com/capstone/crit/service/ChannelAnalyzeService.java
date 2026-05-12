@@ -449,8 +449,8 @@ public class ChannelAnalyzeService {
                 if (seg instanceof Map) {
                     Map<String, Object> segMap = (Map<String, Object>) seg;
                     dropOffInfo = String.format("주요 이탈 구간: %s~%s (위치: %s)\n",
-                            segMap.getOrDefault("startLabel", ""),
-                            segMap.getOrDefault("endLabel", ""),
+                            segMap.getOrDefault("startSeconds", ""),
+                            segMap.getOrDefault("endSeconds", ""),
                             segMap.getOrDefault("description", ""));
                 }
             }
@@ -598,7 +598,8 @@ public class ChannelAnalyzeService {
         videoInfo.put("title", video.getTitle());
         videoInfo.put("thumbnailUrl", video.getThumbnailUrl());
         videoInfo.put("viewCount", video.getViewCount());
-        videoInfo.put("uploadDate", video.getPublishedAt() != null ? video.getPublishedAt().toString() : null);
+        videoInfo.put("uploadDate", video.getPublishedAt() != null
+                ? video.getPublishedAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd")) : null);
         videoInfo.put("category", resolveCategoryName(video.getCategoryId()));
         videoInfo.put("durationSeconds", video.getDurationSeconds());
         videoInfo.put("score", scoreMap);
@@ -635,7 +636,9 @@ public class ChannelAnalyzeService {
         } catch (Exception e) {
             log.warn("영상 Analytics 조회 실패: {}", e.getMessage());
         }
-        result.put("factors", factors);
+        result.put("factors", factors.stream()
+                .map(f -> { Map<String, Object> m = new LinkedHashMap<>(f); m.remove("rawValue"); return m; })
+                .toList());
         result.put("audienceRetention", audienceRetention);
         result.put("insight", generateVideoInsight(video.getTitle(), sr, factors));
 
@@ -646,21 +649,6 @@ public class ChannelAnalyzeService {
 
         result.put("scoreBasis", buildScoreBasis(videoCtr, channelAvgCtr, videoAvgWatchSec, channel, videoGrowth, channelAvgGrowth));
         result.put("viewGrowthData", Map.of("video", videoGrowth, "channelAvg", channelAvgGrowth));
-
-        // 채널 내 상대 순위
-        long betterThanCount = allVideos.stream()
-                .filter(v -> percentileScoringService.score(
-                        v.getViewCount(), v.getLikeCount(), v.getCommentCount(),
-                        v.getDurationSeconds(), channel.getSubscriberCount(),
-                        v.getCategoryId() != null ? v.getCategoryId() : "0"
-                ).totalScore() < sr.totalScore())
-                .count();
-        result.put("channelRank", Map.of(
-                "rank", video.getVideoRank(),
-                "total", allVideos.size(),
-                "betterThanPercent", allVideos.size() > 1
-                        ? (int) Math.round((double) betterThanCount / (allVideos.size() - 1) * 100) : 100
-        ));
 
         return result;
     }
@@ -712,7 +700,7 @@ public class ChannelAnalyzeService {
 
         List<Map<String, Object>> factors = new ArrayList<>();
         Map<String, Object> ctrFactor = new LinkedHashMap<>();
-        ctrFactor.put("name", "CTR");
+        ctrFactor.put("name", "CTR (클릭률)");
         ctrFactor.put("score", ctrScore);
         ctrFactor.put("topPercent", 100 - ctrScore);
         ctrFactor.put("rawValue", String.format("%.1f%%", ctr * 100));
@@ -941,15 +929,11 @@ public class ChannelAnalyzeService {
         Map<String, Object> dropOffSegment = new LinkedHashMap<>();
         dropOffSegment.put("startSeconds", dropStartSec);
         dropOffSegment.put("endSeconds", dropEndSec);
-        dropOffSegment.put("startLabel", formatSeconds(dropStartSec));
-        dropOffSegment.put("endLabel", formatSeconds(dropEndSec));
-        dropOffSegment.put("sectionLabel", sectionLabel);
         dropOffSegment.put("description", description);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("sections", sections);
         result.put("avgWatchSeconds", avgWatchSeconds);
-        result.put("avgRetentionPercent", avgRetentionPercent);
         result.put("mainDropOffSegment", dropOffSegment);
         return result;
     }
@@ -995,6 +979,27 @@ public class ChannelAnalyzeService {
         if (score >= 65) return "이 영상은 평균 이상의 성과를 보이며, 일부 지표를 개선하면 더 높은 확장성을 기대할 수 있습니다.";
         if (score >= 50) return "이 영상은 평균적인 성과를 보이고 있습니다. 클릭률이나 시청 유지율을 개선하면 추천 노출을 늘릴 수 있습니다.";
         return "이 영상은 아직 추천 알고리즘에 최적화되지 않았습니다. 썸네일, 제목, 초반 후킹을 개선해 보세요.";
+    }
+
+    private String getCtrDescription(int score) {
+        if (score >= 80) return "클릭률이 매우 높아 썸네일과 제목이 효과적입니다.";
+        if (score >= 60) return "클릭률이 양호합니다.";
+        if (score >= 40) return "클릭률이 평균 수준입니다. 썸네일이나 제목 개선을 고려해보세요.";
+        return "클릭률이 낮습니다. 썸네일과 제목을 개선해보세요.";
+    }
+
+    private String getWatchDurationDescription(int score) {
+        if (score >= 80) return "시청 지속 시간이 매우 길어 콘텐츠 몰입도가 높습니다.";
+        if (score >= 60) return "시청 지속 시간이 양호합니다.";
+        if (score >= 40) return "시청 지속 시간이 평균 수준입니다. 초반 후킹을 강화해보세요.";
+        return "시청 지속 시간이 짧습니다. 콘텐츠 구성을 개선해보세요.";
+    }
+
+    private String getRecommendDescription(int score) {
+        if (score >= 80) return "추천 알고리즘 확장성이 매우 높습니다.";
+        if (score >= 60) return "추천 확장성이 양호합니다.";
+        if (score >= 40) return "추천 확장성이 평균 수준입니다.";
+        return "추천 확장성이 낮습니다. 시청 유지율과 참여도를 높여보세요.";
     }
 
     private String resolveCategoryName(String categoryId) {
