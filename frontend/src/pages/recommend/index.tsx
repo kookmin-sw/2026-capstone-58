@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import Header from '@/components/header';
 import TabList from '@/components/recommendContent/tabList';
 import FormList from '@/components/recommendContent/formList';
@@ -8,6 +9,9 @@ import FormSubject from '@/components/recommendContent/formSubject';
 import Footer from '@/components/footer';
 
 const RecommendPage = () => {
+  const location = useLocation();
+  const initialKeyword = (location.state as { keyword?: string })?.keyword || '';
+
   const [showSubject, setShowSubject] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
 
@@ -28,7 +32,7 @@ const RecommendPage = () => {
           <div className="relative z-10 mb-[-32px]">
             <TabList tabs={['롱폼', '숏폼']} />
           </div>
-          <FormList onSearch={handleSearch} />
+          <FormList onSearch={handleSearch} initialKeyword={initialKeyword} />
         </div>
         {showSubject && (
           <div className="animate-fade-in-up">
