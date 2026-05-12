@@ -2,6 +2,7 @@ package com.capstone.crit.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -29,6 +30,7 @@ public class VideoCache {
     private Integer algorithmScore; // 계산된 알고리즘 점수
     private Integer videoRank;      // 1~10 순서
     private String categoryId;      // YouTube 카테고리 ID
+    private LocalDate publishedAt;
 
     @Column(nullable = false)
     private LocalDateTime fetchedAt;

@@ -317,8 +317,13 @@ public class ChannelAnalyzeService {
                 long likeCount = stats.path("likeCount").asLong();
                 long commentCount = stats.path("commentCount").asLong();
                 long duration = parseDuration(item.path("contentDetails").path("duration").asText());
-
                 int score = calculateVideoScore(viewCount, likeCount, commentCount, duration, channel.getSubscriberCount());
+
+                String publishedAtStr = item.path("snippet").path("publishedAt").asText(null);
+                LocalDate publishedAt = null;
+                if (publishedAtStr != null && !publishedAtStr.isEmpty()) {
+                    try { publishedAt = java.time.OffsetDateTime.parse(publishedAtStr).toLocalDate(); } catch (Exception ignored) {}
+                }
 
                 result.add(VideoCache.builder()
                         .channelId(channelId)
@@ -331,6 +336,7 @@ public class ChannelAnalyzeService {
                         .durationSeconds(duration)
                         .algorithmScore(score)
                         .categoryId(item.path("snippet").path("categoryId").asText("0"))
+                        .publishedAt(publishedAt)
                         .videoRank(rank++)
                         .fetchedAt(LocalDateTime.now())
                         .build());
@@ -400,6 +406,68 @@ public class ChannelAnalyzeService {
                 String.format("전반적으로 균형 잡힌 성과를 보이고 있어요.");
 
         return strongPart + " " + weakPart;
+    }
+
+    // AI 영상 한 줄 분석 생성
+    private String generateVideoInsight(String title, PercentileScoringService.ScoreResult sr, List<Map<String, Object>> factors) {
+        try {
+            StringBuilder factorDesc = new StringBuilder();
+            for (Map<String, Object> f : factors) {
+                factorDesc.append(String.format("- %s: %d점 (%s)\n",
+                        f.get("name"), f.get("score"), f.get("rawValue")));
+            }
+            String prompt = String.format(
+                    "유튜브 영상 분석 결과를 AI 한 줄 분석으로 작성해.\n" +
+                    "영상 제목: %s\n" +
+                    "종합 점수: %d/100\n" +
+                    "%s" +
+                    "규칙: 2문장 이내. 강점과 약점을 자연스럽게 연결. 한국어.\n" +
+                    "예시: '클릭을 유도하는 썸네일과 제목 덕분에 유입이 높았고, 안정적인 시청 유지율로 추천 확장까지 잘 이루어진 영상입니다.'",
+                    title, sr.totalScore(), factorDesc.toString());
+            return bedrockService.invokeModelPublic(prompt).trim();
+        } catch (Exception e) {
+            log.warn("AI 영상 인사이트 생성 실패: {}", e.getMessage());
+            return generateVideoReason(sr);
+        }
+    }
+
+    // AI 개선 포인트 + 추천 액션 생성
+    private Map<String, List<Map<String, String>>> generateImprovementsAndActions(
+            String title, PercentileScoringService.ScoreResult sr, List<Map<String, Object>> factors) {
+        try {
+            StringBuilder factorDesc = new StringBuilder();
+            for (Map<String, Object> f : factors) {
+                factorDesc.append(String.format("- %s: %d점 (%s)\n",
+                        f.get("name"), f.get("score"), f.get("rawValue")));
+            }
+            String prompt = String.format(
+                    "유튜브 영상 분석 결과를 바탕으로 개선 포인트 2개와 추천 액션 3개를 작성해.\n" +
+                    "영상 제목: %s\n" +
+                    "종합 점수: %d/100\n" +
+                    "%s" +
+                    "규칙: 각 항목은 title(10자 이내)과 description(25자 이내). 약점 기반 개선, 강점 기반 액션.\n" +
+                    "반드시 아래 JSON 형식으로만 답변. 다른 텍스트 없이.\n" +
+                    "{\"improvements\":[{\"title\":\"...\",\"description\":\"...\"}],\"actions\":[{\"title\":\"...\",\"description\":\"...\"}]}",
+                    title, sr.totalScore(), factorDesc.toString());
+            String raw = bedrockService.invokeModelPublic(prompt).trim();
+            int start = raw.indexOf('{');
+            int end = raw.lastIndexOf('}') + 1;
+            if (start >= 0 && end > start) {
+                JsonNode root = objectMapper.readTree(raw.substring(start, end));
+                List<Map<String, String>> improvements = new ArrayList<>();
+                List<Map<String, String>> actions = new ArrayList<>();
+                for (JsonNode node : root.path("improvements")) {
+                    improvements.add(Map.of("title", node.path("title").asText(), "description", node.path("description").asText()));
+                }
+                for (JsonNode node : root.path("actions")) {
+                    actions.add(Map.of("title", node.path("title").asText(), "description", node.path("description").asText()));
+                }
+                return Map.of("improvements", improvements, "actions", actions);
+            }
+        } catch (Exception e) {
+            log.warn("AI 개선 포인트/추천 액션 생성 실패: {}", e.getMessage());
+        }
+        return Map.of("improvements", List.of(), "actions", List.of());
     }
 
     // AI 코멘트 생성 (점수 이유 25~30자)
@@ -484,6 +552,396 @@ public class ChannelAnalyzeService {
             log.warn("가이드 생성 실패: {}", e.getMessage());
         }
         return List.of();
+    }
+
+    public Map<String, Object> getVideoDetail(String videoId) {
+        VideoCache video = videoCacheRepository.findByVideoId(videoId)
+                .orElseThrow(() -> new RuntimeException("영상 정보를 찾을 수 없습니다: " + videoId));
+
+        ChannelCache channel = channelCacheRepository.findByChannelId(video.getChannelId())
+                .orElseThrow(() -> new RuntimeException("채널 정보를 찾을 수 없습니다"));
+
+        List<VideoCache> allVideos = videoCacheRepository.findByChannelIdOrderByVideoRankAsc(video.getChannelId());
+
+        PercentileScoringService.ScoreResult sr = percentileScoringService.score(
+                video.getViewCount(), video.getLikeCount(), video.getCommentCount(),
+                video.getDurationSeconds(), channel.getSubscriberCount(),
+                video.getCategoryId() != null ? video.getCategoryId() : "0"
+        );
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("videoId", video.getVideoId());
+        result.put("title", video.getTitle());
+        result.put("thumbnailUrl", video.getThumbnailUrl());
+        result.put("viewCount", video.getViewCount());
+        result.put("likeCount", video.getLikeCount());
+        result.put("commentCount", video.getCommentCount());
+        result.put("durationSeconds", video.getDurationSeconds());
+        result.put("channelId", video.getChannelId());
+        result.put("channelName", channel.getChannelName());
+        result.put("category", resolveCategoryName(video.getCategoryId()));
+        result.put("score", Map.of(
+                "overall", sr.totalScore(),
+                "topPercent", 100 - sr.totalScore()
+        ));
+
+        // Analytics API로 CTR, 시청 지속 시간, 추천 확장성 조회
+        List<Map<String, Object>> factors = new ArrayList<>();
+        Map<String, Object> audienceRetention = new LinkedHashMap<>();
+        double videoCtr = 0, videoAvgWatchSec = 0, channelAvgCtr = 0;
+        List<Map<String, Object>> videoGrowth = new ArrayList<>();
+        List<Map<String, Object>> channelAvgGrowth = new ArrayList<>();
+        try {
+            String refreshToken = userRepository.findByYoutubeChannelId(video.getChannelId())
+                    .map(u -> u.getGoogleRefreshToken()).orElse(null);
+            if (refreshToken != null) {
+                String accessToken = refreshGoogleAccessToken(refreshToken);
+                VideoFactorsResult fr = fetchVideoFactors(accessToken, video.getVideoId(), video.getDurationSeconds());
+                factors = fr.factors();
+                videoCtr = fr.ctr();
+                videoAvgWatchSec = fr.avgWatchSec();
+                try { channelAvgCtr = fetchChannelAvgCtr(accessToken); } catch (Exception e) { log.warn("채널 평균 CTR 조회 실패: {}", e.getMessage()); }
+                try { audienceRetention = fetchAudienceRetention(accessToken, video.getVideoId(), video.getDurationSeconds()); } catch (Exception e) { log.warn("시청자 유지율 조회 실패: {}", e.getMessage()); }
+                if (video.getPublishedAt() != null) {
+                    try { videoGrowth = fetchViewGrowthData(accessToken, video.getVideoId(), video.getPublishedAt()); } catch (Exception e) { log.warn("영상 조회수 성장 조회 실패: {}", e.getMessage()); }
+                    try { channelAvgGrowth = fetchChannelAvgViewGrowth(accessToken, video.getPublishedAt(), allVideos.size()); } catch (Exception e) { log.warn("채널 평균 성장 조회 실패: {}", e.getMessage()); }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("영상 Analytics 조회 실패: {}", e.getMessage());
+        }
+        result.put("factors", factors);
+        result.put("audienceRetention", audienceRetention);
+        result.put("insight", generateVideoInsight(video.getTitle(), sr, factors));
+
+        Map<String, List<Map<String, String>>> improvementsAndActions =
+                generateImprovementsAndActions(video.getTitle(), sr, factors);
+        result.put("improvements", improvementsAndActions.get("improvements"));
+        result.put("recommendedActions", improvementsAndActions.get("actions"));
+
+        result.put("scoreBasis", buildScoreBasis(videoCtr, channelAvgCtr, videoAvgWatchSec, channel, videoGrowth, channelAvgGrowth));
+        result.put("viewGrowthData", Map.of("video", videoGrowth, "channelAvg", channelAvgGrowth));
+
+        // 채널 내 상대 순위
+        long betterThanCount = allVideos.stream()
+                .filter(v -> percentileScoringService.score(
+                        v.getViewCount(), v.getLikeCount(), v.getCommentCount(),
+                        v.getDurationSeconds(), channel.getSubscriberCount(),
+                        v.getCategoryId() != null ? v.getCategoryId() : "0"
+                ).totalScore() < sr.totalScore())
+                .count();
+        result.put("channelRank", Map.of(
+                "rank", video.getVideoRank(),
+                "total", allVideos.size(),
+                "betterThanPercent", allVideos.size() > 1
+                        ? (int) Math.round((double) betterThanCount / (allVideos.size() - 1) * 100) : 100
+        ));
+
+        return result;
+    }
+
+    private record VideoFactorsResult(List<Map<String, Object>> factors, double ctr, double avgWatchSec, double recommendPct) {}
+
+    private VideoFactorsResult fetchVideoFactors(String accessToken, String videoId, long durationSeconds) throws Exception {
+        String endDate   = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        String startDate = LocalDate.now().minusYears(2).format(DateTimeFormatter.ISO_LOCAL_DATE);
+        String filter    = "video%3D%3D" + videoId;
+
+        String metricsResp = WebClient.create().get()
+                .uri("https://youtubeanalytics.googleapis.com/v2/reports"
+                        + "?ids=channel%3D%3DMINE"
+                        + "&startDate=" + startDate + "&endDate=" + endDate
+                        + "&metrics=impressionsClickThroughRate,averageViewDuration"
+                        + "&filters=" + filter)
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve().bodyToMono(String.class).block();
+
+        JsonNode metricsRows = objectMapper.readTree(metricsResp).path("rows");
+        double ctr = 0, avgWatchSec = 0;
+        if (!metricsRows.isEmpty()) {
+            ctr         = metricsRows.get(0).get(0).asDouble();
+            avgWatchSec = metricsRows.get(0).get(1).asDouble();
+        }
+
+        String trafficResp = WebClient.create().get()
+                .uri("https://youtubeanalytics.googleapis.com/v2/reports"
+                        + "?ids=channel%3D%3DMINE"
+                        + "&startDate=" + startDate + "&endDate=" + endDate
+                        + "&metrics=views&dimensions=insightTrafficSourceType"
+                        + "&filters=" + filter)
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve().bodyToMono(String.class).block();
+
+        JsonNode trafficRows = objectMapper.readTree(trafficResp).path("rows");
+        double totalViews = 0, suggestedViews = 0;
+        for (JsonNode row : trafficRows) {
+            double views = row.get(1).asDouble();
+            totalViews += views;
+            if ("SUGGESTED_VIDEOS".equals(row.get(0).asText())) suggestedViews = views;
+        }
+        double recommendPct = totalViews > 0 ? suggestedViews / totalViews : 0;
+
+        int ctrScore       = calcCtrScore(ctr);
+        int watchScore     = calcWatchDurationScore(avgWatchSec, durationSeconds);
+        int recommendScore = calcRecommendScore(recommendPct);
+
+        List<Map<String, Object>> factors = new ArrayList<>();
+        factors.add(new LinkedHashMap<>(Map.of(
+                "name", "CTR",
+                "score", ctrScore,
+                "rawValue", String.format("%.1f%%", ctr * 100),
+                "description", "노출 대비 클릭률"
+        )));
+        factors.add(new LinkedHashMap<>(Map.of(
+                "name", "시청 지속 시간",
+                "score", watchScore,
+                "rawValue", String.format("%.0f초 (유지율 %.0f%%)", avgWatchSec,
+                        durationSeconds > 0 ? avgWatchSec / durationSeconds * 100 : 0),
+                "description", "평균 시청 유지율"
+        )));
+        factors.add(new LinkedHashMap<>(Map.of(
+                "name", "추천 확장성",
+                "score", recommendScore,
+                "rawValue", String.format("%.1f%%", recommendPct * 100),
+                "description", "추천 알고리즘을 통한 유입 비율"
+        )));
+        return new VideoFactorsResult(factors, ctr, avgWatchSec, recommendPct);
+    }
+
+    private double fetchChannelAvgCtr(String accessToken) throws Exception {
+        String endDate   = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        String startDate = LocalDate.now().minusMonths(3).format(DateTimeFormatter.ISO_LOCAL_DATE);
+        String resp = WebClient.create().get()
+                .uri("https://youtubeanalytics.googleapis.com/v2/reports"
+                        + "?ids=channel%3D%3DMINE"
+                        + "&startDate=" + startDate + "&endDate=" + endDate
+                        + "&metrics=impressionsClickThroughRate")
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve().bodyToMono(String.class).block();
+        JsonNode rows = objectMapper.readTree(resp).path("rows");
+        return rows.isEmpty() ? 0 : rows.get(0).get(0).asDouble();
+    }
+
+    private List<Map<String, Object>> fetchViewGrowthData(String accessToken, String videoId, LocalDate publishedAt) throws Exception {
+        LocalDate endDate = publishedAt.plusDays(6);
+        if (endDate.isAfter(LocalDate.now())) endDate = LocalDate.now();
+        String filter = "video%3D%3D" + videoId;
+        String resp = WebClient.create().get()
+                .uri("https://youtubeanalytics.googleapis.com/v2/reports"
+                        + "?ids=channel%3D%3DMINE"
+                        + "&startDate=" + publishedAt.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        + "&endDate=" + endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        + "&metrics=views&dimensions=day&filters=" + filter + "&sort=day")
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve().bodyToMono(String.class).block();
+        JsonNode rows = objectMapper.readTree(resp).path("rows");
+        List<Map<String, Object>> result = new ArrayList<>();
+        long cumulative = 0;
+        for (JsonNode row : rows) {
+            cumulative += row.get(1).asLong();
+            int day = (int) java.time.temporal.ChronoUnit.DAYS.between(publishedAt, LocalDate.parse(row.get(0).asText()));
+            result.add(Map.of("day", day, "views", cumulative));
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> fetchChannelAvgViewGrowth(String accessToken, LocalDate publishedAt, int videoCount) throws Exception {
+        LocalDate endDate = publishedAt.plusDays(6);
+        if (endDate.isAfter(LocalDate.now())) endDate = LocalDate.now();
+        String resp = WebClient.create().get()
+                .uri("https://youtubeanalytics.googleapis.com/v2/reports"
+                        + "?ids=channel%3D%3DMINE"
+                        + "&startDate=" + publishedAt.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        + "&endDate=" + endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                        + "&metrics=views&dimensions=day&sort=day")
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve().bodyToMono(String.class).block();
+        JsonNode rows = objectMapper.readTree(resp).path("rows");
+        List<Map<String, Object>> result = new ArrayList<>();
+        long cumulative = 0;
+        int count = Math.max(1, videoCount);
+        for (JsonNode row : rows) {
+            cumulative += row.get(1).asLong();
+            int day = (int) java.time.temporal.ChronoUnit.DAYS.between(publishedAt, LocalDate.parse(row.get(0).asText()));
+            result.add(Map.of("day", day, "avgViews", cumulative / count));
+        }
+        return result;
+    }
+
+    private List<String> buildScoreBasis(double videoCtr, double channelAvgCtr, double videoAvgWatchSec,
+                                          ChannelCache channel, List<Map<String, Object>> videoGrowth,
+                                          List<Map<String, Object>> channelGrowth) {
+        List<String> basis = new ArrayList<>();
+        if (videoCtr > 0 && channelAvgCtr > 0) {
+            double diff = (videoCtr - channelAvgCtr) * 100;
+            basis.add(String.format("CTR이 채널 평균(%.1f%%) 대비 %.1f%% %s. (%.1f%%)",
+                    channelAvgCtr * 100, Math.abs(diff), diff >= 0 ? "높습니다" : "낮습니다", videoCtr * 100));
+        }
+        if (videoAvgWatchSec > 0 && channel.getAvgWatchDurationSeconds() != null) {
+            long channelAvgSec = channel.getAvgWatchDurationSeconds().longValue();
+            long diff = Math.round(videoAvgWatchSec) - channelAvgSec;
+            basis.add(String.format("평균 시청 지속 시간이 채널 평균(%s) 대비 %d초 %s.(%s)",
+                    formatSeconds(channelAvgSec), Math.abs(diff), diff >= 0 ? "더 깁니다" : "더 짧습니다",
+                    formatSeconds(Math.round(videoAvgWatchSec))));
+        }
+        if (!videoGrowth.isEmpty() && !channelGrowth.isEmpty()) {
+            long videoDay0 = ((Number) videoGrowth.get(0).get("views")).longValue();
+            long channelDay0 = ((Number) channelGrowth.get(0).get("avgViews")).longValue();
+            if (channelDay0 > 0) {
+                double growthDiff = (double)(videoDay0 - channelDay0) / channelDay0 * 100;
+                basis.add(String.format("업로드 후 24시간 동안 조회수 성장률이 채널 평균 대비 %.0f%% %s.",
+                        Math.abs(growthDiff), growthDiff >= 0 ? "높습니다" : "낮습니다"));
+            }
+        }
+        return basis;
+    }
+
+    private String formatSeconds(long seconds) {
+        return String.format("%d:%02d", seconds / 60, seconds % 60);
+    }
+
+    private Map<String, Object> fetchAudienceRetention(String accessToken, String videoId, long durationSeconds) throws Exception {
+        String endDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        String startDate = LocalDate.now().minusYears(2).format(DateTimeFormatter.ISO_LOCAL_DATE);
+        String filter = "video%3D%3D" + videoId;
+
+        String retentionResp = WebClient.create().get()
+                .uri("https://youtubeanalytics.googleapis.com/v2/reports"
+                        + "?ids=channel%3D%3DMINE"
+                        + "&startDate=" + startDate + "&endDate=" + endDate
+                        + "&metrics=audienceWatched"
+                        + "&dimensions=elapsedVideoTimeRatio"
+                        + "&filters=" + filter
+                        + "&sort=elapsedVideoTimeRatio")
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve().bodyToMono(String.class).block();
+
+        JsonNode rows = objectMapper.readTree(retentionResp).path("rows");
+        if (rows.isEmpty()) return new LinkedHashMap<>();
+
+        int n = rows.size();
+        double[] retentionPcts = new double[n];
+        long[] timeSecs = new long[n];
+
+        double baseVal = rows.get(0).get(1).asDouble();
+        if (baseVal <= 0) baseVal = 1.0;
+
+        List<Map<String, Object>> curve = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            double ratio = rows.get(i).get(0).asDouble();
+            double watched = rows.get(i).get(1).asDouble();
+            retentionPcts[i] = watched / baseVal * 100;
+            timeSecs[i] = Math.round(ratio * durationSeconds);
+
+            Map<String, Object> point = new LinkedHashMap<>();
+            point.put("timeSeconds", timeSecs[i]);
+            point.put("retentionPercent", Math.round(retentionPcts[i] * 10.0) / 10.0);
+            curve.add(point);
+        }
+
+        // 가장 급격한 이탈 구간 탐지 (슬라이딩 윈도우)
+        int windowSize = Math.max(2, n / 20);
+        int dropStart = 0;
+        double maxDrop = Double.MIN_VALUE;
+        for (int i = 0; i + windowSize < n; i++) {
+            double drop = retentionPcts[i] - retentionPcts[i + windowSize];
+            if (drop > maxDrop) {
+                maxDrop = drop;
+                dropStart = i;
+            }
+        }
+        long dropStartSec = timeSecs[dropStart];
+        long dropEndSec = timeSecs[Math.min(dropStart + windowSize, n - 1)];
+
+        String tip;
+        double startRatio = durationSeconds > 0 ? (double) dropStartSec / durationSeconds : 0;
+        if (startRatio < 0.1) {
+            tip = "초반 후킹을 강화하면 더 많은 시청자를 붙잡을 수 있어요.";
+        } else if (startRatio < 0.5) {
+            tip = "중반부 흐름을 더 긴장감 있게 구성하면 이탈을 줄일 수 있어요.";
+        } else {
+            tip = "마무리 구성을 강화하면 완주율을 높일 수 있어요.";
+        }
+
+        // 평균 유지율 = avgWatchSeconds / durationSeconds
+        String avgWatchResp = WebClient.create().get()
+                .uri("https://youtubeanalytics.googleapis.com/v2/reports"
+                        + "?ids=channel%3D%3DMINE"
+                        + "&startDate=" + startDate + "&endDate=" + endDate
+                        + "&metrics=averageViewDuration"
+                        + "&filters=" + filter)
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve().bodyToMono(String.class).block();
+
+        JsonNode avgRows = objectMapper.readTree(avgWatchResp).path("rows");
+        long avgWatchSeconds = 0;
+        if (!avgRows.isEmpty()) {
+            avgWatchSeconds = Math.round(avgRows.get(0).get(0).asDouble());
+        }
+        int avgRetentionPercent = durationSeconds > 0
+                ? (int) Math.round((double) avgWatchSeconds / durationSeconds * 100) : 0;
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("curve", curve);
+        result.put("avgWatchSeconds", avgWatchSeconds);
+        result.put("avgRetentionPercent", avgRetentionPercent);
+        Map<String, Object> dropOffSegment = new LinkedHashMap<>();
+        dropOffSegment.put("startSeconds", dropStartSec);
+        dropOffSegment.put("endSeconds", dropEndSec);
+        dropOffSegment.put("tip", tip);
+        result.put("mainDropOffSegment", dropOffSegment);
+        return result;
+    }
+
+    private int calcCtrScore(double ctr) {
+        double pct = ctr * 100;
+        if (pct >= 10) return 95;
+        if (pct >= 7)  return (int)(80 + (pct - 7)  / 3  * 15);
+        if (pct >= 5)  return (int)(65 + (pct - 5)  / 2  * 15);
+        if (pct >= 3)  return (int)(40 + (pct - 3)  / 2  * 25);
+        if (pct >= 1)  return (int)(10 + (pct - 1)  / 2  * 30);
+        return (int)(pct * 10);
+    }
+
+    private int calcWatchDurationScore(double avgWatchSec, long durationSeconds) {
+        if (durationSeconds <= 0) return 50;
+        double retention = avgWatchSec / durationSeconds * 100;
+        if (retention >= 70) return 95;
+        if (retention >= 50) return (int)(75 + (retention - 50) / 20 * 20);
+        if (retention >= 35) return (int)(55 + (retention - 35) / 15 * 20);
+        if (retention >= 20) return (int)(30 + (retention - 20) / 15 * 25);
+        return (int)(retention / 20 * 30);
+    }
+
+    private int calcRecommendScore(double recommendPct) {
+        double pct = recommendPct * 100;
+        if (pct >= 50) return 95;
+        if (pct >= 30) return (int)(75 + (pct - 30) / 20 * 20);
+        if (pct >= 15) return (int)(50 + (pct - 15) / 15 * 25);
+        if (pct >= 5)  return (int)(20 + (pct - 5)  / 10 * 30);
+        return (int)(pct / 5 * 20);
+    }
+
+    private String resolveCategoryName(String categoryId) {
+        if (categoryId == null) return "기타";
+        return switch (categoryId) {
+            case "1"  -> "영화/애니메이션";
+            case "2"  -> "자동차/교통";
+            case "10" -> "음악";
+            case "15" -> "반려동물";
+            case "17" -> "스포츠";
+            case "19" -> "여행/이벤트";
+            case "20" -> "게임";
+            case "22" -> "인물/블로그";
+            case "23" -> "코미디";
+            case "24" -> "엔터테인먼트";
+            case "25" -> "뉴스/정치";
+            case "26" -> "노하우/스타일";
+            case "27" -> "교육";
+            case "28" -> "과학/기술";
+            case "29" -> "비영리/사회활동";
+            default   -> "기타";
+        };
     }
 
     private String refreshGoogleAccessToken(String refreshToken) throws Exception {
