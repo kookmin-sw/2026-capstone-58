@@ -44,6 +44,11 @@ def collect_all_categories(category_ids=None):
                 continue
             video_ids = get_video_ids(YOUTUBE_API_KEY, ch["uploads_playlist"])
             videos = get_videos(YOUTUBE_API_KEY, video_ids)
+
+            # 채널 평균 조회수 계산 (vs_channel_avg용)
+            channel_views = [v["view_count"] for v in videos if v["view_count"] > 0]
+            channel_avg_views = sum(channel_views) / len(channel_views) if channel_views else 1
+
             for v in videos:
                 if v["view_count"] == 0:
                     continue
@@ -51,6 +56,8 @@ def collect_all_categories(category_ids=None):
                 v["vps"] = v["view_count"] / ch["subscriber_count"]
                 v["engagement_rate"] = (v["like_count"] + v["comment_count"]) / v["view_count"]
                 v["like_rate"] = v["like_count"] / v["view_count"]
+                v["vs_channel_avg"] = v["view_count"] / channel_avg_views
+                v["daily_views"] = v["view_count"] / max(v.get("days_since_upload", 1), 1)
                 all_videos.append(v)
             cat_channels += 1
             cat_videos += len(videos)
@@ -87,7 +94,7 @@ def build_percentile_tables(videos):
         if len(data) < 20:
             continue
         tables[key] = {"sample_count": len(data)}
-        for metric_name, metric_key in [("vps", "vps"), ("engagement", "engagement_rate"), ("like_rate", "like_rate")]:
+        for metric_name, metric_key in [("vps", "vps"), ("engagement", "engagement_rate"), ("like_rate", "like_rate"), ("vs_channel_avg", "vs_channel_avg"), ("daily_views", "daily_views")]:
             vals = sorted([d[metric_key] for d in data])
             n = len(vals)
             tables[key][metric_name] = [vals[min(int(n * p / 100), n - 1)] for p in range(101)]

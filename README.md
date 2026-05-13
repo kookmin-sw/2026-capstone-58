@@ -164,14 +164,16 @@ videos.list(chart=mostPopular, videoCategoryId=X, regionCode=KR, maxResults=50)
 ### 점수 공식
 
 ```
-점수 = VPS 백분위 × 0.60 + 참여율 백분위 × 0.25 + 좋아요율 백분위 × 0.15
+점수 = VPS 백분위 × 0.40 + 채널평균대비 백분위 × 0.40 + 일평균조회수 백분위 × 0.20
 ```
 
 | 지표 | 가중치 | 근거 |
 |---|---|---|
-| views_per_sub 백분위 | 60% | 성공 지표와 상관계수 최대 (+0.77) |
-| engagement_rate 백분위 | 25% | 시청자 반응 품질 반영 |
-| like_rate 백분위 | 15% | 콘텐츠 만족도 보조 지표 |
+| views_per_sub (VPS) 백분위 | 40% | 구독자 대비 조회수, 핵심 성과 지표 |
+| vs_channel_avg 백분위 | 40% | 채널 평소 성적 대비 상대 성과, 채널 규모 독립적 |
+| daily_views 백분위 | 20% | 시간 경과 보정된 절대 성과 |
+
+> **변경 이유**: 기존 공식(VPS×60 + 참여율×25 + 좋아요율×15)은 VPS와 참여율이 음의 상관관계(-0.24)를 가져, 바이럴 영상(VPS 높음, 참여율 낮음)의 점수가 부당하게 깎이는 문제가 있었다. 새 공식은 서로 양의 상관관계를 가진 지표들로 구성하여 이 문제를 해결한다.
 
 ### 구독자 구간
 
@@ -321,15 +323,31 @@ python3 collect_all.py 20 28    # 특정 카테고리만
 
 ```
 youtube-data-collector/
-├── youtube_api.py      # YouTube API 공통 모듈 (채널/영상 조회, 유틸)
-├── lambda_function.py  # Lambda 함수 (수집 → 백분위 계산 → S3 저장)
-├── lambda-deploy.zip   # Lambda 배포 패키지 (lambda_function.py + youtube_api.py + requests)
-├── collect.py          # 로컬 수집 모듈 (파생 지표 계산, CSV 저장)
-├── collect_all.py      # 로컬 전체 카테고리 일괄 수집
-├── channels.json       # 수동 채널 목록 (선택)
-├── data/               # 로컬 수집 CSV 데이터
-├── .env                # 환경변수 (git 제외)
-├── .env.example
+├── youtube_api.py          # YouTube API 공통 모듈 (채널/영상 조회, 유틸)
+├── lambda_function.py      # Lambda 함수 (수집 → 백분위 계산 → S3 저장)
+├── collect.py              # 로컬 수집 모듈 (파생 지표 계산, CSV 저장)
+├── collect_all.py          # 로컬 전체 카테고리 일괄 수집
+├── train.py                # ML 점수 모델 학습 스크립트
+├── feature_config.json     # 피처 설정 (수치/범주형 피처 정의)
+├── channels.json           # 수동 채널 목록 (선택)
+├── requirements.txt        # Python 의존성
+├── src/                    # ML 모듈
+│   ├── feature_engineer.py # 피처 엔지니어링 (백분위 조회, 스케일링, One-Hot)
+│   ├── label_generator.py  # 레이블 생성 (Comparison Group 내 순위 기반)
+│   ├── model_trainer.py    # 다중 모델 학습 및 Champion 선정
+│   ├── model_evaluator.py  # 모델 평가 (MAE, RMSE, Spearman, 단조 증가)
+│   ├── model_server.py     # 모델 추론 서빙 (폴백 포함)
+│   └── training_pipeline.py # 재학습 파이프라인 (성능 하락 감지, 롤백)
+├── models/                 # 학습된 모델 아티팩트
+│   ├── champion_model.joblib
+│   ├── champion_meta.json
+│   ├── scaler_params.json
+│   ├── percentile_tables.json
+│   ├── selection_report.json
+│   └── versions/           # 모델 버전 이력
+├── tests/                  # 단위/통합 테스트
+├── data/                   # 로컬 수집 CSV 데이터 (git 제외)
+├── .env                    # 환경변수 (git 제외)
 └── .gitignore
 ```
 
