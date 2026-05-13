@@ -1,36 +1,44 @@
 import DetailScoreContainer from './detailScoreContainer';
+import useCurrentVideoStore from '@/stores/useCurrentVideoStore';
 
-interface DetailScoreProps {
-  isLoading?: boolean;
-}
+// API name을 UI title로 매핑
+const nameToTitle: Record<string, string> = {
+  CTR: 'CTR (클릭률)',
+  '시청 지속 시간': '시청 지속 시간',
+  '추천 확장성': '추천 확장성',
+};
 
-const DetailScore = ({ isLoading = false }: DetailScoreProps) => {
+const DetailScore = () => {
+  const videoAnalysis = useCurrentVideoStore(s => s.videoAnalysis);
+  const isLoading = useCurrentVideoStore(s => s.isLoading);
+
+  const factors = videoAnalysis?.factors;
+  const showLoading = isLoading || !factors;
+
+  // 로딩 중이거나 데이터 없으면 기본 3개 표시
+  if (showLoading || factors.length === 0) {
+    return (
+      <div className="flex w-full gap-7 justify-center items-stretch">
+        <DetailScoreContainer title="CTR (클릭률)" isLoading />
+        <DetailScoreContainer title="시청 지속 시간" isLoading />
+        <DetailScoreContainer title="추천 확장성" isLoading />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex w-full gap-7 justify-center items-center">
-      <DetailScoreContainer
-        title="CTR (클릭률)"
-        score={76}
-        topPercent={5}
-        avgDiff={3.2}
-        content="클릭을 유도하는 썸네일과 제목이 효과적이었습니다."
-        isLoading={isLoading}
-      />
-      <DetailScoreContainer
-        title="시청 지속 시간"
-        score={88}
-        topPercent={20}
-        avgDiff={3.2}
-        content="클릭을 유도하는 썸네일과 제목이 효과적이었습니다."
-        isLoading={isLoading}
-      />
-      <DetailScoreContainer
-        title="추천 확장성"
-        score={22}
-        topPercent={87}
-        avgDiff={-9.2}
-        content="클릭을 유도하는 썸네일과 제목이 효과적이었습니다."
-        isLoading={isLoading}
-      />
+    <div className="flex w-full gap-7 justify-center items-stretch">
+      {factors.map((factor, index) => (
+        <DetailScoreContainer
+          key={index}
+          title={nameToTitle[factor.name] || factor.name}
+          score={factor.score}
+          topPercent={factor.topPercent}
+          avgDiff={factor.changePercent}
+          content={factor.description}
+          isLoading={false}
+        />
+      ))}
     </div>
   );
 };

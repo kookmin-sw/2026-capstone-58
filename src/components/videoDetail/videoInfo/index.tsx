@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import ShareIcon from '@/assets/icons/share-icon.svg?react';
-import useCurrentVideoStore from '@/stores/useCurrentVideoStore';
 import ColumnLine from './columnLine.tsx';
 import CircleProgress from '@/components/channel/algorithmScore/circleProgress';
 import ViewsIcon from '@/assets/icons/score-icons/video-detail/views-icon.svg?react';
@@ -10,20 +9,40 @@ import UploadIcon from '@/assets/icons/score-icons/video-detail/upload-icon.svg?
 import BarGraphIcon from '@/assets/icons/score-icons/video-detail/bar-graph-icon.svg?react';
 import RightIcon from '@/assets/icons/score-icons/video-detail/right-icon.svg?react';
 import InfoIcon from '@/assets/icons/score-icons/video-detail/info-icon.svg?react';
+import useCurrentVideoStore from '@/stores/useCurrentVideoStore';
 
 const VideoInfo = () => {
   const [shared, setShared] = useState(false);
-  const video = useCurrentVideoStore(s => s.video);
+  const videoAnalysis = useCurrentVideoStore(s => s.videoAnalysis);
+  const isLoading = useCurrentVideoStore(s => s.isLoading);
 
-  const videoUrl = video ? `https://www.youtube.com/watch?v=${video.videoId}` : '';
+  const videoInfo = videoAnalysis?.videoInfo;
+  const videoUrl = videoInfo ? `https://www.youtube.com/watch?v=${videoInfo.videoId}` : '';
+
+  // 조회수 포맷팅 (154000 -> "154,000")
+  const formatViewCount = (count: number) => {
+    return count.toLocaleString();
+  };
+
+  // 업로드 날짜 포맷팅 (2024-03-15 -> "2024.03.15")
+  const formatUploadDate = (date: string) => {
+    return date.replace(/-/g, '.');
+  };
+
+  // 영상 시간 포맷팅 (743초 -> "12:23")
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!video) return;
+    if (!videoInfo) return;
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: video.title, url: videoUrl });
+        await navigator.share({ title: videoInfo.title, url: videoUrl });
         setShared(true);
         setTimeout(() => setShared(false), 2000);
       } catch {
@@ -36,13 +55,19 @@ const VideoInfo = () => {
     }
   };
 
+  const showLoading = isLoading || !videoInfo;
+
   return (
     <div className="flex w-full justify-center items-center px-8 py-6 gap-7 bg-white rounded-xl border-[0.1px] border-[#8257B4]">
       <div className="w-107.5 shrink-0 aspect-video rounded-xl overflow-hidden">
-        {video?.thumbnailUrl ? (
-          <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
+        {videoInfo?.thumbnailUrl ? (
+          <img
+            src={videoInfo.thumbnailUrl}
+            alt={videoInfo.title}
+            className="w-full h-full object-cover"
+          />
         ) : (
-          <div className="flex w-full h-full items-center justify-center text-gray-400 typo-body2 bg-gray-100">
+          <div className="flex w-full h-full items-center justify-center text-gray-400 typo-body2 bg-gray-100 animate-loading-pulse">
             썸네일이 표시됩니다.
           </div>
         )}
@@ -50,7 +75,13 @@ const VideoInfo = () => {
       <div className="flex flex-col w-full gap-4 items-center justify-center">
         <div className="flex w-full justify-start items-center gap-2">
           <div className="text-black typo-title1">
-            {video?.title || '영상 제목을 불러오는 중...'}
+            {showLoading ? (
+              <span className="text-gray-400 animate-loading-pulse">
+                영상 제목을 불러오는 중...
+              </span>
+            ) : (
+              videoInfo.title
+            )}
           </div>
           <ShareIcon
             onClick={handleShare}
@@ -60,22 +91,46 @@ const VideoInfo = () => {
         <div className="flex w-full justify-start items-center gap-2.5">
           <div className="flex justify-center items-center gap-1">
             <ViewsIcon className="w-4 h-4" />
-            <div className="text-black typo-body5">조회수 154,000회</div>
+            <div className="text-black typo-body5">
+              {showLoading ? (
+                <span className="animate-loading-pulse">조회수 ---회</span>
+              ) : (
+                `조회수 ${formatViewCount(videoInfo.viewCount)}회`
+              )}
+            </div>
           </div>
           <ColumnLine />
           <div className="flex justify-center items-center gap-1">
             <UploadIcon className="w-4 h-4" />
-            <div className="text-black typo-body5">2024.07.18 업로드</div>
+            <div className="text-black typo-body5">
+              {showLoading ? (
+                <span className="animate-loading-pulse">----.--.-- 업로드</span>
+              ) : (
+                `${formatUploadDate(videoInfo.uploadDate)} 업로드`
+              )}
+            </div>
           </div>
           <ColumnLine />
           <div className="flex justify-center items-center gap-1">
             <CategoryIcon className="w-4 h-4" />
-            <div className="text-black typo-body5">리그오브레전드</div>
+            <div className="text-black typo-body5">
+              {showLoading ? (
+                <span className="animate-loading-pulse">카테고리</span>
+              ) : (
+                videoInfo.category
+              )}
+            </div>
           </div>
           <ColumnLine />
           <div className="flex justify-center items-center gap-1">
             <TimeIcon className="w-4 h-4" />
-            <div className="text-black typo-body5">27:34</div>
+            <div className="text-black typo-body5">
+              {showLoading ? (
+                <span className="animate-loading-pulse">--:--</span>
+              ) : (
+                formatDuration(videoInfo.durationSeconds)
+              )}
+            </div>
           </div>
         </div>
         <div className="flex w-full justify-start items-center gap-1.5">
@@ -83,7 +138,13 @@ const VideoInfo = () => {
             <BarGraphIcon />
             <div className="text-[#634DCB] typo-body6">분석 기준</div>
           </div>
-          <div className="text-black typo-body5">2024.07.18 ~ 현재</div>
+          <div className="text-black typo-body5">
+            {showLoading ? (
+              <span className="animate-loading-pulse">----.--.-- ~ 현재</span>
+            ) : (
+              `${formatUploadDate(videoInfo.uploadDate)} ~ 현재`
+            )}
+          </div>
           <RightIcon className="w-3 h-3" />
         </div>
         <div className="flex flex-col w-full px-4 py-3.5 justify-center items-center gap-1.5 self-stretch rounded-xl border-[0.5px] border-[#8257B4]">
@@ -92,14 +153,24 @@ const VideoInfo = () => {
             <InfoIcon className="w-3.5 h-3.5" />
           </div>
           <div className="flex w-full justify-center items-center gap-7">
-            <CircleProgress score={video?.percentileScore ?? 0} />
+            <CircleProgress score={showLoading ? 0 : videoInfo.score.overall} />
             <div className="w-0.5 h-40 bg-[#8257B433] self-stretch" />
             <div className="flex flex-col w-full justify-center items-center gap-2">
               <div className="w-full justify-start items-center text-black typo-body4-semibold">
-                상위 8% 영상입니다.
+                {showLoading ? (
+                  <span className="animate-loading-pulse">상위 --% 영상입니다.</span>
+                ) : (
+                  `상위 ${videoInfo.score.topPercent}% 영상입니다.`
+                )}
               </div>
               <div className="w-full jsutify-start items-center text-black typo-body5">
-                이 영상은 클릭률과 시청 유지율이 높아 추천 확장성이 우수한 콘텐츠입니다.
+                {showLoading ? (
+                  <span className="text-gray-400 animate-loading-pulse">
+                    분석 결과를 불러오는 중입니다...
+                  </span>
+                ) : (
+                  videoInfo.score.description
+                )}
               </div>
             </div>
           </div>
