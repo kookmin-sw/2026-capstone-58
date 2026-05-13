@@ -18,7 +18,7 @@ const DetailScore = () => {
   // 로딩 중이거나 데이터 없으면 기본 3개 표시
   if (showLoading || factors.length === 0) {
     return (
-      <div className="flex w-full gap-7 justify-center items-center">
+      <div className="flex w-full gap-7 justify-center items-stretch">
         <DetailScoreContainer title="CTR (클릭률)" isLoading />
         <DetailScoreContainer title="시청 지속 시간" isLoading />
         <DetailScoreContainer title="추천 확장성" isLoading />
@@ -27,7 +27,7 @@ const DetailScore = () => {
   }
 
   return (
-    <div className="flex w-full gap-7 justify-center items-center">
+    <div className="flex w-full gap-7 justify-center items-stretch">
       {factors.map((factor, index) => (
         <DetailScoreContainer
           key={index}
