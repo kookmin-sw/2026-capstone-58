@@ -1,0 +1,137 @@
+2026-05-13 14:30:26.031 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 9.0.1.Final
+2026-05-13 14:30:26.131 INFO  [restartedMain] com.capstone.crit.CritApplication - Starting CritApplication using Java 17.0.18 with PID 87509 (/home/ec2-user/environment/crit-server/build/classes/java/main started by ec2-user in /home/ec2-user/environment/crit-server)
+2026-05-13 14:30:26.133 INFO  [restartedMain] com.capstone.crit.CritApplication - The following 1 profile is active: "dev"
+2026-05-13 14:30:26.233 INFO  [restartedMain] o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-05-13 14:30:26.234 INFO  [restartedMain] o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-05-13 14:30:27.340 INFO  [restartedMain] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-13 14:30:27.472 INFO  [restartedMain] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 123 ms. Found 6 JPA repository interfaces.
+2026-05-13 14:30:28.034 INFO  [restartedMain] o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-05-13 14:30:28.045 INFO  [restartedMain] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-05-13 14:30:28.047 INFO  [restartedMain] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-13 14:30:28.048 INFO  [restartedMain] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-05-13 14:30:28.093 INFO  [restartedMain] o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1858 ms
+2026-05-13 14:30:28.351 INFO  [restartedMain] org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-05-13 14:30:28.398 INFO  [restartedMain] org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.4.Final
+2026-05-13 14:30:28.818 INFO  [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-13 14:30:28.848 INFO  [restartedMain] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-05-13 14:30:28.988 INFO  [restartedMain] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@24b0b0fd
+2026-05-13 14:30:28.989 INFO  [restartedMain] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-05-13 14:30:29.067 INFO  [restartedMain] o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:mysql://pj-kmucd1-08-db.cj24wem202yj.us-east-1.rds.amazonaws.com:3306/crit?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true]
+	Database driver: MySQL Connector/J
+	Database dialect: MySQLDialect
+	Database version: 8.4.8
+	Default catalog/schema: crit/undefined
+	Autocommit mode: undefined/unknown
+	Isolation level: REPEATABLE_READ [default REPEATABLE_READ]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-05-13 14:30:30.072 INFO  [restartedMain] org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-13 14:30:30.152 INFO  [restartedMain] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-13 14:30:30.253 INFO  [restartedMain] o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-05-13 14:30:32.115 INFO  [restartedMain] c.c.c.s.PercentileScoringService - 백분위 테이블 로드 완료: 112개 그룹, 수집일: 2026-05-08T02:42:56.028785+00:00
+2026-05-13 14:30:32.213 INFO  [restartedMain] c.c.c.s.TrendingKeywordsService - 트렌드 키워드 로드 완료 (3448bytes)
+2026-05-13 14:30:32.236 WARN  [restartedMain] o.s.aop.framework.CglibAopProxy - Public final method [public final void org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService.setOauth2UserService(org.springframework.security.oauth2.client.userinfo.OAuth2UserService)] cannot get proxied via CGLIB, consider removing the final marker or using interface-based JDK proxies.
+2026-05-13 14:30:32.236 WARN  [restartedMain] o.s.aop.framework.CglibAopProxy - Public final method [public final void org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService.setClaimTypeConverterFactory(java.util.function.Function)] cannot get proxied via CGLIB, consider removing the final marker or using interface-based JDK proxies.
+2026-05-13 14:30:32.236 WARN  [restartedMain] o.s.aop.framework.CglibAopProxy - Public final method [public final void org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService.setRetrieveUserInfo(java.util.function.Predicate)] cannot get proxied via CGLIB, consider removing the final marker or using interface-based JDK proxies.
+2026-05-13 14:30:32.525 WARN  [restartedMain] o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-05-13 14:30:32.586 DEBUG [restartedMain] o.s.s.c.a.a.c.AuthenticationConfiguration$DefaultPasswordEncoderAuthenticationManagerBuilder - No authenticationProviders and no parentAuthenticationManager defined. Returning null.
+2026-05-13 14:30:32.751 DEBUG [restartedMain] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with filters: DisableEncodeUrlFilter, WebAsyncManagerIntegrationFilter, SecurityContextHolderFilter, HeaderWriterFilter, CorsFilter, LogoutFilter, OAuth2AuthorizationRequestRedirectFilter, OAuth2LoginAuthenticationFilter, JwtAuthenticationFilter, DefaultResourcesFilter, DefaultLoginPageGeneratingFilter, DefaultLogoutPageGeneratingFilter, RequestCacheAwareFilter, SecurityContextHolderAwareRequestFilter, AnonymousAuthenticationFilter, SessionManagementFilter, ExceptionTranslationFilter, AuthorizationFilter
+2026-05-13 14:30:33.173 INFO  [restartedMain] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-05-13 14:30:33.200 INFO  [restartedMain] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-05-13 14:30:33.211 INFO  [restartedMain] com.capstone.crit.CritApplication - Started CritApplication in 7.66 seconds (process running for 8.448)
+2026-05-13 14:30:33.352 INFO  [scheduling-1] c.c.c.s.PercentileScoringService - 백분위 테이블 로드 완료: 112개 그룹, 수집일: 2026-05-08T02:42:56.028785+00:00
+2026-05-13 14:30:33.386 INFO  [scheduling-1] c.c.c.s.TrendingKeywordsService - 트렌드 키워드 로드 완료 (3448bytes)
+2026-05-13 14:30:39.707 INFO  [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-13 14:30:39.708 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-05-13 14:30:39.709 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 1 ms
+2026-05-13 14:30:39.718 DEBUG [http-nio-8080-exec-1] o.s.security.web.FilterChainProxy - Securing OPTIONS /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:30:39.938 DEBUG [http-nio-8080-exec-2] o.s.security.web.FilterChainProxy - Securing GET /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:30:40.019 DEBUG [http-nio-8080-exec-2] o.s.s.w.c.HttpSessionSecurityContextRepository - Stored SecurityContextImpl [Authentication=UsernamePasswordAuthenticationToken [Principal=2, Credentials=[PROTECTED], Authenticated=true, Details=null, Granted Authorities=[]]] to HttpSession [org.apache.catalina.session.StandardSessionFacade@1ef7bde8]
+2026-05-13 14:30:40.020 DEBUG [http-nio-8080-exec-2] o.s.security.web.FilterChainProxy - Secured GET /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:30:48.858 DEBUG [http-nio-8080-exec-3] o.s.security.web.FilterChainProxy - Securing OPTIONS /analyze/video/EaHj6b7P608
+2026-05-13 14:30:49.058 DEBUG [http-nio-8080-exec-4] o.s.security.web.FilterChainProxy - Securing GET /analyze/video/EaHj6b7P608
+2026-05-13 14:30:49.061 DEBUG [http-nio-8080-exec-4] o.s.s.w.c.HttpSessionSecurityContextRepository - Stored SecurityContextImpl [Authentication=UsernamePasswordAuthenticationToken [Principal=2, Credentials=[PROTECTED], Authenticated=true, Details=null, Granted Authorities=[]]] to HttpSession [org.apache.catalina.session.StandardSessionFacade@36be4d54]
+2026-05-13 14:30:49.061 DEBUG [http-nio-8080-exec-4] o.s.security.web.FilterChainProxy - Secured GET /analyze/video/EaHj6b7P608
+2026-05-13 14:30:50.005 WARN  [http-nio-8080-exec-4] c.c.c.service.ChannelAnalyzeService - 채널 평균 CTR 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports - BadRequest
+2026-05-13 14:30:50.006 WARN  [http-nio-8080-exec-4] c.c.c.service.ChannelAnalyzeService - Analytics 응답 바디: {
+  "error": {
+    "code": 400,
+    "message": "Could not parse content (channel%3D%3DMINE) of field ids.",
+    "errors": [
+      {
+        "message": "Could not parse content (channel%3D%3DMINE) of field ids.",
+        "domain": "global",
+        "reason": "badRequest"
+      }
+    ]
+  }
+}
+
+2026-05-13 14:30:50.052 WARN  [http-nio-8080-exec-4] c.c.c.service.ChannelAnalyzeService - 영상 Analytics 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports
+2026-05-13 14:31:40.823 INFO  [SpringApplicationShutdownHook] o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-05-13 14:31:40.834 INFO  [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-05-13 14:31:40.866 WARN  [SpringApplicationShutdownHook] o.s.c.s.DefaultLifecycleProcessor - Failed to stop bean 'reactorResourceFactory'
+java.util.concurrent.RejectedExecutionException: event executor terminated
+	at io.netty.util.concurrent.SingleThreadEventExecutor.reject(SingleThreadEventExecutor.java:1125)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.offerTask(SingleThreadEventExecutor.java:413)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.addTask(SingleThreadEventExecutor.java:406)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:1027)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute0(SingleThreadEventExecutor.java:993)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.execute(SingleThreadEventExecutor.java:983)
+	at io.netty.channel.AbstractChannelHandlerContext.safeExecute(AbstractChannelHandlerContext.java:1040)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:649)
+	at io.netty.channel.AbstractChannelHandlerContext.close(AbstractChannelHandlerContext.java:453)
+	at io.netty.channel.DefaultChannelPipeline.close(DefaultChannelPipeline.java:978)
+	at io.netty.channel.Channel.close(Channel.java:312)
+	at reactor.netty.resources.DefaultPooledConnectionProvider$PooledConnectionAllocator.lambda$static$2(DefaultPooledConnectionProvider.java:627)
+	at reactor.netty.internal.shaded.reactor.pool.AbstractPool.destroyPoolable(AbstractPool.java:176)
+	at reactor.netty.internal.shaded.reactor.pool.SimpleDequePool.lambda$disposeLater$2(SimpleDequePool.java:210)
+	at reactor.core.publisher.MonoDefer.subscribe(MonoDefer.java:46)
+	at reactor.core.publisher.Mono.subscribe(Mono.java:4569)
+	at reactor.core.publisher.MonoIgnoreThen$ThenIgnoreMain.subscribeNext(MonoIgnoreThen.java:268)
+	at reactor.core.publisher.MonoIgnoreThen.subscribe(MonoIgnoreThen.java:51)
+	at reactor.core.publisher.Mono.subscribe(Mono.java:4569)
+	at reactor.core.publisher.MonoWhen$WhenCoordinator.request(MonoWhen.java:228)
+	at reactor.core.publisher.MonoWhen$WhenInner.onSubscribe(MonoWhen.java:399)
+	at reactor.core.publisher.MonoWhen.subscribe(MonoWhen.java:101)
+	at reactor.core.publisher.Mono.subscribe(Mono.java:4569)
+	at reactor.core.publisher.MonoWhen$WhenCoordinator.request(MonoWhen.java:228)
+	at reactor.core.publisher.MonoWhen$WhenInner.onSubscribe(MonoWhen.java:399)
+	at reactor.core.publisher.MonoWhen.subscribe(MonoWhen.java:101)
+	at reactor.core.publisher.MonoDefer.subscribe(MonoDefer.java:54)
+	at reactor.core.publisher.Mono.subscribe(Mono.java:4569)
+	at reactor.core.publisher.MonoWhen$WhenCoordinator.request(MonoWhen.java:228)
+	at reactor.core.publisher.MonoWhen$WhenInner.onSubscribe(MonoWhen.java:399)
+	at reactor.core.publisher.MonoWhen.subscribe(MonoWhen.java:101)
+	at reactor.core.publisher.Mono.subscribe(Mono.java:4569)
+	at reactor.core.publisher.MonoWhen$WhenCoordinator.request(MonoWhen.java:228)
+	at reactor.core.publisher.BlockingSingleSubscriber.onSubscribe(BlockingSingleSubscriber.java:55)
+	at org.springframework.security.config.annotation.web.configuration.SecurityReactorContextConfiguration$SecurityReactorContextSubscriber.onSubscribe(SecurityReactorContextConfiguration.java:181)
+	at reactor.core.publisher.MonoWhen.subscribe(MonoWhen.java:101)
+	at reactor.core.publisher.MonoDefer.subscribe(MonoDefer.java:54)
+	at reactor.core.publisher.Mono.subscribe(Mono.java:4569)
+	at reactor.core.publisher.Mono.block(Mono.java:1772)
+	at org.springframework.http.client.ReactorResourceFactory.stop(ReactorResourceFactory.java:296)
+	at org.springframework.context.SmartLifecycle.stop(SmartLifecycle.java:143)
+	at org.springframework.context.support.DefaultLifecycleProcessor.doStop(DefaultLifecycleProcessor.java:480)
+	at org.springframework.context.support.DefaultLifecycleProcessor$LifecycleGroup.stop(DefaultLifecycleProcessor.java:645)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.context.support.DefaultLifecycleProcessor.stopBeans(DefaultLifecycleProcessor.java:448)
+	at org.springframework.context.support.DefaultLifecycleProcessor.onClose(DefaultLifecycleProcessor.java:337)
+	at org.springframework.context.support.AbstractApplicationContext.doClose(AbstractApplicationContext.java:1199)
+	at org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext.doClose(ServletWebServerApplicationContext.java:176)
+	at org.springframework.context.support.AbstractApplicationContext.close(AbstractApplicationContext.java:1153)
+	at org.springframework.boot.SpringApplicationShutdownHook.closeAndWait(SpringApplicationShutdownHook.java:147)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.boot.SpringApplicationShutdownHook.run(SpringApplicationShutdownHook.java:116)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+	Suppressed: java.lang.Exception: #block terminated with an error
+		at reactor.core.publisher.BlockingSingleSubscriber.blockingGet(BlockingSingleSubscriber.java:104)
+		at reactor.core.publisher.Mono.block(Mono.java:1773)
+		... 14 common frames omitted
+2026-05-13 14:31:40.875 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-05-13 14:31:40.879 INFO  [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-05-13 14:31:40.892 INFO  [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

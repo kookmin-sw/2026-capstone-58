@@ -618,10 +618,10 @@ public class ChannelAnalyzeService {
                     .map(u -> u.getGoogleRefreshToken()).orElse(null);
             if (refreshToken != null) {
                 String accessToken = refreshGoogleAccessToken(refreshToken);
-                try { channelAvgCtr = fetchChannelAvgCtr(accessToken); } catch (Exception e) { log.warn("채널 평균 CTR 조회 실패: {}", e.getMessage()); }
-                VideoFactorsResult fr = fetchVideoFactors(accessToken, video.getVideoId(), video.getDurationSeconds(), channelAvgCtr, channel.getAvgWatchDurationSeconds());
+                channelAvgCtr = channel.getSubscriberCount() > 0 ? channel.getAvgViewCount() / channel.getSubscriberCount() : 0;
+                VideoFactorsResult fr = fetchVideoFactors(accessToken, video.getVideoId(), video.getDurationSeconds(), channelAvgCtr, channel.getAvgWatchDurationSeconds(), video.getViewCount(), channel.getSubscriberCount());
                 factors = fr.factors();
-                videoCtr = fr.ctr();
+                videoCtr = fr.reach();
                 videoAvgWatchSec = fr.avgWatchSec();
                 try { audienceRetention = fetchAudienceRetention(accessToken, video.getVideoId(), video.getDurationSeconds()); } catch (Exception e) { log.warn("시청자 유지율 조회 실패: {}", e.getMessage()); }
                 if (video.getPublishedAt() != null) {
@@ -649,32 +649,34 @@ public class ChannelAnalyzeService {
         return result;
     }
 
-    private record VideoFactorsResult(List<Map<String, Object>> factors, double ctr, double avgWatchSec, double recommendPct) {}
+    private record VideoFactorsResult(List<Map<String, Object>> factors, double reach, double avgWatchSec, double recommendPct) {}
 
-    private VideoFactorsResult fetchVideoFactors(String accessToken, String videoId, long durationSeconds, double channelAvgCtr, Double channelAvgWatchSec) throws Exception {
+    private VideoFactorsResult fetchVideoFactors(String accessToken, String videoId, long durationSeconds, double channelAvgReach, Double channelAvgWatchSec, long viewCount, long subscriberCount) throws Exception {
         String endDate   = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         String startDate = LocalDate.now().minusYears(2).format(DateTimeFormatter.ISO_LOCAL_DATE);
-        String filter    = "video%3D%3D" + videoId;
+        String filter    = "video==" + videoId;
 
         String metricsResp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
-                        + "&metrics=impressionsClickThroughRate,averageViewDuration"
+                        + "&metrics=averageViewDuration"
                         + "&filters=" + filter)
                 .header("Authorization", "Bearer " + accessToken)
                 .retrieve().bodyToMono(String.class).block();
 
         JsonNode metricsRows = objectMapper.readTree(metricsResp).path("rows");
-        double ctr = 0, avgWatchSec = 0;
+        double avgWatchSec = 0;
         if (!metricsRows.isEmpty()) {
-            ctr         = metricsRows.get(0).get(0).asDouble();
-            avgWatchSec = metricsRows.get(0).get(1).asDouble();
+            avgWatchSec = metricsRows.get(0).get(0).asDouble();
         }
+
+        // 도달률: 조회수 / 구독자수 (구독자 0이면 조회수 기반 추정)
+        double reach = subscriberCount > 0 ? (double) viewCount / subscriberCount : 0;
 
         String trafficResp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
                         + "&metrics=views&dimensions=insightTrafficSourceType"
                         + "&filters=" + filter)
@@ -690,20 +692,20 @@ public class ChannelAnalyzeService {
         }
         double recommendPct = totalViews > 0 ? suggestedViews / totalViews : 0;
 
-        int ctrScore       = calcCtrScore(ctr);
+        int reachScore     = calcReachScore(reach);
         int watchScore     = calcWatchDurationScore(avgWatchSec, durationSeconds);
         int recommendScore = calcRecommendScore(recommendPct);
 
         List<Map<String, Object>> factors = new ArrayList<>();
-        Map<String, Object> ctrFactor = new LinkedHashMap<>();
-        ctrFactor.put("name", "CTR (클릭률)");
-        ctrFactor.put("score", ctrScore);
-        ctrFactor.put("topPercent", 100 - ctrScore);
-        ctrFactor.put("rawValue", String.format("%.1f%%", ctr * 100));
-        ctrFactor.put("changePercent", channelAvgCtr > 0
-                ? Math.round((ctr - channelAvgCtr) / channelAvgCtr * 1000.0) / 10.0 : null);
-        ctrFactor.put("description", getCtrDescription(ctrScore));
-        factors.add(ctrFactor);
+        Map<String, Object> reachFactor = new LinkedHashMap<>();
+        reachFactor.put("name", "도달률");
+        reachFactor.put("score", reachScore);
+        reachFactor.put("topPercent", 100 - reachScore);
+        reachFactor.put("rawValue", String.format("%.1f%%", reach * 100));
+        reachFactor.put("changePercent", channelAvgReach > 0
+                ? Math.round((reach - channelAvgReach) / channelAvgReach * 1000.0) / 10.0 : null);
+        reachFactor.put("description", getReachDescription(reachScore));
+        factors.add(reachFactor);
 
         Map<String, Object> watchFactor = new LinkedHashMap<>();
         watchFactor.put("name", "시청 지속 시간");
@@ -724,7 +726,7 @@ public class ChannelAnalyzeService {
         recommendFactor.put("changePercent", Math.round((recommendPct - 0.30) / 0.30 * 1000.0) / 10.0);
         recommendFactor.put("description", getRecommendDescription(recommendScore));
         factors.add(recommendFactor);
-        return new VideoFactorsResult(factors, ctr, avgWatchSec, recommendPct);
+        return new VideoFactorsResult(factors, reach, avgWatchSec, recommendPct);
     }
 
     private double fetchChannelAvgCtr(String accessToken) throws Exception {
@@ -732,7 +734,7 @@ public class ChannelAnalyzeService {
         String startDate = LocalDate.now().minusMonths(3).format(DateTimeFormatter.ISO_LOCAL_DATE);
         String resp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
                         + "&metrics=impressionsClickThroughRate")
                 .header("Authorization", "Bearer " + accessToken)
@@ -744,10 +746,10 @@ public class ChannelAnalyzeService {
     private List<Map<String, Object>> fetchViewGrowthData(String accessToken, String videoId, LocalDate publishedAt) throws Exception {
         LocalDate endDate = publishedAt.plusDays(7);
         if (endDate.isAfter(LocalDate.now())) endDate = LocalDate.now();
-        String filter = "video%3D%3D" + videoId;
+        String filter = "video==" + videoId;
         String resp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + publishedAt.format(DateTimeFormatter.ISO_LOCAL_DATE)
                         + "&endDate=" + endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
                         + "&metrics=views&dimensions=day&filters=" + filter + "&sort=day")
@@ -769,7 +771,7 @@ public class ChannelAnalyzeService {
         if (endDate.isAfter(LocalDate.now())) endDate = LocalDate.now();
         String resp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + publishedAt.format(DateTimeFormatter.ISO_LOCAL_DATE)
                         + "&endDate=" + endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
                         + "&metrics=views&dimensions=day&sort=day")
@@ -793,7 +795,7 @@ public class ChannelAnalyzeService {
         List<String> basis = new ArrayList<>();
         if (videoCtr > 0 && channelAvgCtr > 0) {
             double diff = (videoCtr - channelAvgCtr) * 100;
-            basis.add(String.format("CTR이 채널 평균(%.1f%%) 대비 %.1f%% %s. (%.1f%%)",
+            basis.add(String.format("도달률이 채널 평균(%.1f%%) 대비 %.1f%% %s. (%.1f%%)",
                     channelAvgCtr * 100, Math.abs(diff), diff >= 0 ? "높습니다" : "낮습니다", videoCtr * 100));
         }
         if (videoAvgWatchSec > 0 && channel.getAvgWatchDurationSeconds() != null) {
@@ -822,13 +824,13 @@ public class ChannelAnalyzeService {
     private Map<String, Object> fetchAudienceRetention(String accessToken, String videoId, long durationSeconds) throws Exception {
         String endDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         String startDate = LocalDate.now().minusYears(2).format(DateTimeFormatter.ISO_LOCAL_DATE);
-        String filter = "video%3D%3D" + videoId;
+        String filter = "video==" + videoId;
 
         String retentionResp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
-                        + "&metrics=audienceWatched"
+                        + "&metrics=audienceWatchRatio"
                         + "&dimensions=elapsedVideoTimeRatio"
                         + "&filters=" + filter
                         + "&sort=elapsedVideoTimeRatio")
@@ -907,7 +909,7 @@ public class ChannelAnalyzeService {
 
         String avgWatchResp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
                         + "&metrics=averageViewDuration"
                         + "&filters=" + filter)
@@ -940,13 +942,13 @@ public class ChannelAnalyzeService {
         return s == 0 ? m + "분" : m + "분 " + s + "초";
     }
 
-    private int calcCtrScore(double ctr) {
-        double pct = ctr * 100;
-        if (pct >= 10) return 95;
-        if (pct >= 7)  return (int)(80 + (pct - 7)  / 3  * 15);
-        if (pct >= 5)  return (int)(65 + (pct - 5)  / 2  * 15);
-        if (pct >= 3)  return (int)(40 + (pct - 3)  / 2  * 25);
-        if (pct >= 1)  return (int)(10 + (pct - 1)  / 2  * 30);
+    private int calcReachScore(double reach) {
+        double pct = reach * 100;
+        if (pct >= 100) return 95;
+        if (pct >= 50)  return (int)(80 + (pct - 50)  / 50  * 15);
+        if (pct >= 20)  return (int)(65 + (pct - 20)  / 30  * 15);
+        if (pct >= 5)   return (int)(40 + (pct - 5)   / 15  * 25);
+        if (pct >= 1)   return (int)(10 + (pct - 1)   / 4   * 30);
         return (int)(pct * 10);
     }
 
@@ -977,11 +979,11 @@ public class ChannelAnalyzeService {
         return "이 영상은 아직 추천 알고리즘에 최적화되지 않았습니다. 썸네일, 제목, 초반 후킹을 개선해 보세요.";
     }
 
-    private String getCtrDescription(int score) {
-        if (score >= 80) return "클릭률이 매우 높아 썸네일과 제목이 효과적입니다.";
-        if (score >= 60) return "클릭률이 양호합니다.";
-        if (score >= 40) return "클릭률이 평균 수준입니다. 썸네일이나 제목 개선을 고려해보세요.";
-        return "클릭률이 낮습니다. 썸네일과 제목을 개선해보세요.";
+    private String getReachDescription(int score) {
+        if (score >= 80) return "구독자 대비 조회수가 매우 높아 콘텐츠 도달력이 뛰어납니다.";
+        if (score >= 60) return "도달률이 양호합니다.";
+        if (score >= 40) return "도달률이 평균 수준입니다. 썸네일이나 제목 개선을 고려해보세요.";
+        return "도달률이 낮습니다. 썸네일과 제목을 개선해보세요.";
     }
 
     private String getWatchDurationDescription(int score) {

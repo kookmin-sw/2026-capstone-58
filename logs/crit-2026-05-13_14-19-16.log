@@ -1,0 +1,89 @@
+2026-05-13 14:19:17.080 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 9.0.1.Final
+2026-05-13 14:19:17.136 INFO  [restartedMain] com.capstone.crit.CritApplication - Starting CritApplication using Java 17.0.18 with PID 81362 (/home/ec2-user/environment/crit-server/build/classes/java/main started by ec2-user in /home/ec2-user/environment/crit-server)
+2026-05-13 14:19:17.137 INFO  [restartedMain] com.capstone.crit.CritApplication - The following 1 profile is active: "dev"
+2026-05-13 14:19:17.218 INFO  [restartedMain] o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - Devtools property defaults active! Set 'spring.devtools.add-properties' to 'false' to disable
+2026-05-13 14:19:17.218 INFO  [restartedMain] o.s.b.d.e.DevToolsPropertyDefaultsPostProcessor - For additional web related logging consider setting the 'logging.level.web' property to 'DEBUG'
+2026-05-13 14:19:18.351 INFO  [restartedMain] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-13 14:19:18.484 INFO  [restartedMain] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 124 ms. Found 6 JPA repository interfaces.
+2026-05-13 14:19:19.025 INFO  [restartedMain] o.s.boot.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-05-13 14:19:19.035 INFO  [restartedMain] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-05-13 14:19:19.038 INFO  [restartedMain] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-13 14:19:19.038 INFO  [restartedMain] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/11.0.18]
+2026-05-13 14:19:19.082 INFO  [restartedMain] o.s.b.w.c.s.WebApplicationContextInitializer - Root WebApplicationContext: initialization completed in 1862 ms
+2026-05-13 14:19:19.308 INFO  [restartedMain] org.hibernate.orm.jpa - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-05-13 14:19:19.354 INFO  [restartedMain] org.hibernate.orm.core - HHH000001: Hibernate ORM core version 7.2.4.Final
+2026-05-13 14:19:19.767 INFO  [restartedMain] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-13 14:19:19.796 INFO  [restartedMain] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-05-13 14:19:19.953 INFO  [restartedMain] com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection com.mysql.cj.jdbc.ConnectionImpl@4b2737ea
+2026-05-13 14:19:19.956 INFO  [restartedMain] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-05-13 14:19:20.033 INFO  [restartedMain] o.hibernate.orm.connections.pooling - HHH10001005: Database info:
+	Database JDBC URL [jdbc:mysql://pj-kmucd1-08-db.cj24wem202yj.us-east-1.rds.amazonaws.com:3306/crit?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true]
+	Database driver: MySQL Connector/J
+	Database dialect: MySQLDialect
+	Database version: 8.4.8
+	Default catalog/schema: crit/undefined
+	Autocommit mode: undefined/unknown
+	Isolation level: REPEATABLE_READ [default REPEATABLE_READ]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-05-13 14:19:20.999 INFO  [restartedMain] org.hibernate.orm.core - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-13 14:19:21.086 INFO  [restartedMain] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-13 14:19:21.176 INFO  [restartedMain] o.s.d.j.r.q.QueryEnhancerFactories - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-05-13 14:19:23.011 INFO  [restartedMain] c.c.c.s.PercentileScoringService - 백분위 테이블 로드 완료: 112개 그룹, 수집일: 2026-05-08T02:42:56.028785+00:00
+2026-05-13 14:19:23.120 INFO  [restartedMain] c.c.c.s.TrendingKeywordsService - 트렌드 키워드 로드 완료 (3448bytes)
+2026-05-13 14:19:23.141 WARN  [restartedMain] o.s.aop.framework.CglibAopProxy - Public final method [public final void org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService.setOauth2UserService(org.springframework.security.oauth2.client.userinfo.OAuth2UserService)] cannot get proxied via CGLIB, consider removing the final marker or using interface-based JDK proxies.
+2026-05-13 14:19:23.142 WARN  [restartedMain] o.s.aop.framework.CglibAopProxy - Public final method [public final void org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService.setClaimTypeConverterFactory(java.util.function.Function)] cannot get proxied via CGLIB, consider removing the final marker or using interface-based JDK proxies.
+2026-05-13 14:19:23.142 WARN  [restartedMain] o.s.aop.framework.CglibAopProxy - Public final method [public final void org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService.setRetrieveUserInfo(java.util.function.Predicate)] cannot get proxied via CGLIB, consider removing the final marker or using interface-based JDK proxies.
+2026-05-13 14:19:23.404 WARN  [restartedMain] o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-05-13 14:19:23.462 DEBUG [restartedMain] o.s.s.c.a.a.c.AuthenticationConfiguration$DefaultPasswordEncoderAuthenticationManagerBuilder - No authenticationProviders and no parentAuthenticationManager defined. Returning null.
+2026-05-13 14:19:23.629 DEBUG [restartedMain] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with filters: DisableEncodeUrlFilter, WebAsyncManagerIntegrationFilter, SecurityContextHolderFilter, HeaderWriterFilter, CorsFilter, LogoutFilter, OAuth2AuthorizationRequestRedirectFilter, OAuth2LoginAuthenticationFilter, JwtAuthenticationFilter, DefaultResourcesFilter, DefaultLoginPageGeneratingFilter, DefaultLogoutPageGeneratingFilter, RequestCacheAwareFilter, SecurityContextHolderAwareRequestFilter, AnonymousAuthenticationFilter, SessionManagementFilter, ExceptionTranslationFilter, AuthorizationFilter
+2026-05-13 14:19:24.046 INFO  [restartedMain] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-05-13 14:19:24.060 INFO  [restartedMain] o.s.boot.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/'
+2026-05-13 14:19:24.076 INFO  [restartedMain] com.capstone.crit.CritApplication - Started CritApplication in 7.473 seconds (process running for 7.957)
+2026-05-13 14:19:24.211 INFO  [scheduling-1] c.c.c.s.PercentileScoringService - 백분위 테이블 로드 완료: 112개 그룹, 수집일: 2026-05-08T02:42:56.028785+00:00
+2026-05-13 14:19:24.244 INFO  [scheduling-1] c.c.c.s.TrendingKeywordsService - 트렌드 키워드 로드 완료 (3448bytes)
+2026-05-13 14:19:33.047 INFO  [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-05-13 14:19:33.048 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-05-13 14:19:33.050 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-05-13 14:19:33.059 DEBUG [http-nio-8080-exec-1] o.s.security.web.FilterChainProxy - Securing OPTIONS /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:19:33.273 DEBUG [http-nio-8080-exec-2] o.s.security.web.FilterChainProxy - Securing GET /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:19:33.356 DEBUG [http-nio-8080-exec-2] o.s.s.w.c.HttpSessionSecurityContextRepository - Stored SecurityContextImpl [Authentication=UsernamePasswordAuthenticationToken [Principal=2, Credentials=[PROTECTED], Authenticated=true, Details=null, Granted Authorities=[]]] to HttpSession [org.apache.catalina.session.StandardSessionFacade@56d3c444]
+2026-05-13 14:19:33.357 DEBUG [http-nio-8080-exec-2] o.s.security.web.FilterChainProxy - Secured GET /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:19:41.276 DEBUG [http-nio-8080-exec-3] o.s.security.web.FilterChainProxy - Securing OPTIONS /analyze/video/EaHj6b7P608
+2026-05-13 14:19:41.471 DEBUG [http-nio-8080-exec-4] o.s.security.web.FilterChainProxy - Securing GET /analyze/video/EaHj6b7P608
+2026-05-13 14:19:41.474 DEBUG [http-nio-8080-exec-4] o.s.s.w.c.HttpSessionSecurityContextRepository - Stored SecurityContextImpl [Authentication=UsernamePasswordAuthenticationToken [Principal=2, Credentials=[PROTECTED], Authenticated=true, Details=null, Granted Authorities=[]]] to HttpSession [org.apache.catalina.session.StandardSessionFacade@222c9feb]
+2026-05-13 14:19:41.474 DEBUG [http-nio-8080-exec-4] o.s.security.web.FilterChainProxy - Secured GET /analyze/video/EaHj6b7P608
+2026-05-13 14:19:42.335 WARN  [http-nio-8080-exec-4] c.c.c.service.ChannelAnalyzeService - 채널 평균 CTR 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports
+2026-05-13 14:19:42.378 WARN  [http-nio-8080-exec-4] c.c.c.service.ChannelAnalyzeService - 영상 Analytics 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports
+2026-05-13 14:21:12.069 DEBUG [http-nio-8080-exec-6] o.s.security.web.FilterChainProxy - Securing GET /analyze/video/EaHj6b7P608
+2026-05-13 14:21:12.070 DEBUG [http-nio-8080-exec-6] o.s.s.w.a.AnonymousAuthenticationFilter - Set SecurityContextHolder to anonymous SecurityContext
+2026-05-13 14:21:12.071 DEBUG [http-nio-8080-exec-6] o.s.security.web.FilterChainProxy - Secured GET /analyze/video/EaHj6b7P608
+2026-05-13 14:21:12.229 WARN  [http-nio-8080-exec-6] c.c.c.service.ChannelAnalyzeService - 채널 평균 CTR 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports
+2026-05-13 14:21:12.280 WARN  [http-nio-8080-exec-6] c.c.c.service.ChannelAnalyzeService - 영상 Analytics 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports
+2026-05-13 14:22:18.820 DEBUG [http-nio-8080-exec-7] o.s.security.web.FilterChainProxy - Securing OPTIONS /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:22:19.022 DEBUG [http-nio-8080-exec-8] o.s.security.web.FilterChainProxy - Securing GET /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:22:19.025 DEBUG [http-nio-8080-exec-8] o.s.s.w.c.HttpSessionSecurityContextRepository - Stored SecurityContextImpl [Authentication=UsernamePasswordAuthenticationToken [Principal=2, Credentials=[PROTECTED], Authenticated=true, Details=null, Granted Authorities=[]]] to HttpSession [org.apache.catalina.session.StandardSessionFacade@29984b79]
+2026-05-13 14:22:19.025 DEBUG [http-nio-8080-exec-8] o.s.security.web.FilterChainProxy - Secured GET /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:22:28.695 DEBUG [http-nio-8080-exec-10] o.s.security.web.FilterChainProxy - Securing OPTIONS /analyze/video/EaHj6b7P608
+2026-05-13 14:22:28.897 DEBUG [http-nio-8080-exec-9] o.s.security.web.FilterChainProxy - Securing GET /analyze/video/EaHj6b7P608
+2026-05-13 14:22:28.900 DEBUG [http-nio-8080-exec-9] o.s.s.w.c.HttpSessionSecurityContextRepository - Stored SecurityContextImpl [Authentication=UsernamePasswordAuthenticationToken [Principal=2, Credentials=[PROTECTED], Authenticated=true, Details=null, Granted Authorities=[]]] to HttpSession [org.apache.catalina.session.StandardSessionFacade@7acc7405]
+2026-05-13 14:22:28.901 DEBUG [http-nio-8080-exec-9] o.s.security.web.FilterChainProxy - Secured GET /analyze/video/EaHj6b7P608
+2026-05-13 14:22:29.074 WARN  [http-nio-8080-exec-9] c.c.c.service.ChannelAnalyzeService - 채널 평균 CTR 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports
+2026-05-13 14:22:29.229 WARN  [http-nio-8080-exec-9] c.c.c.service.ChannelAnalyzeService - 영상 Analytics 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports
+2026-05-13 14:22:57.523 DEBUG [http-nio-8080-exec-1] o.s.security.web.FilterChainProxy - Securing OPTIONS /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:22:57.726 DEBUG [http-nio-8080-exec-2] o.s.security.web.FilterChainProxy - Securing GET /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:22:57.732 DEBUG [http-nio-8080-exec-2] o.s.s.w.c.HttpSessionSecurityContextRepository - Stored SecurityContextImpl [Authentication=UsernamePasswordAuthenticationToken [Principal=2, Credentials=[PROTECTED], Authenticated=true, Details=null, Granted Authorities=[]]] to HttpSession [org.apache.catalina.session.StandardSessionFacade@81ff455]
+2026-05-13 14:22:57.733 DEBUG [http-nio-8080-exec-2] o.s.security.web.FilterChainProxy - Secured GET /analyze/channel?channel=https:%2F%2Fwww.youtube.com%2Fchannel%2FUCrUMlWBN_tSUlaoHQmsR-SA
+2026-05-13 14:22:59.146 DEBUG [http-nio-8080-exec-3] o.s.security.web.FilterChainProxy - Securing OPTIONS /analyze/video/S-cB9fhF8CQ
+2026-05-13 14:22:59.348 DEBUG [http-nio-8080-exec-4] o.s.security.web.FilterChainProxy - Securing GET /analyze/video/S-cB9fhF8CQ
+2026-05-13 14:22:59.351 DEBUG [http-nio-8080-exec-4] o.s.s.w.c.HttpSessionSecurityContextRepository - Stored SecurityContextImpl [Authentication=UsernamePasswordAuthenticationToken [Principal=2, Credentials=[PROTECTED], Authenticated=true, Details=null, Granted Authorities=[]]] to HttpSession [org.apache.catalina.session.StandardSessionFacade@73e8fda8]
+2026-05-13 14:22:59.351 DEBUG [http-nio-8080-exec-4] o.s.security.web.FilterChainProxy - Secured GET /analyze/video/S-cB9fhF8CQ
+2026-05-13 14:22:59.472 WARN  [http-nio-8080-exec-4] c.c.c.service.ChannelAnalyzeService - 채널 평균 CTR 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports
+2026-05-13 14:22:59.526 WARN  [http-nio-8080-exec-4] c.c.c.service.ChannelAnalyzeService - 영상 Analytics 조회 실패: 400 Bad Request from GET https://youtubeanalytics.googleapis.com/v2/reports
+2026-05-13 14:25:14.641 INFO  [SpringApplicationShutdownHook] o.s.boot.tomcat.GracefulShutdown - Commencing graceful shutdown. Waiting for active requests to complete
+2026-05-13 14:25:14.658 INFO  [tomcat-shutdown] o.s.boot.tomcat.GracefulShutdown - Graceful shutdown complete
+2026-05-13 14:25:14.690 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-05-13 14:25:14.695 INFO  [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-05-13 14:25:14.702 INFO  [SpringApplicationShutdownHook] com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.
