@@ -122,9 +122,13 @@ public class ChannelAnalyzeService {
         List<PercentileScoringService.ScoreResult> scoreResults = new ArrayList<>();
         List<Map<String, Object>> percentileVideoScores = new ArrayList<>();
         for (VideoCache video : videos) {
+            long daysSinceUpload = video.getPublishedAt() != null
+                    ? Math.max(1, java.time.temporal.ChronoUnit.DAYS.between(video.getPublishedAt(), java.time.LocalDate.now()))
+                    : 30;
             PercentileScoringService.ScoreResult sr = percentileScoringService.score(
-                    video.getViewCount(), video.getLikeCount(), video.getCommentCount(),
-                    video.getDurationSeconds(), channel.getSubscriberCount(),
+                    video.getViewCount(), channel.getSubscriberCount(),
+                    channel.getAvgViewCount(), daysSinceUpload,
+                    video.getDurationSeconds(),
                     video.getCategoryId() != null ? video.getCategoryId() : "0"
             );
             scoreResults.add(sr);
@@ -144,25 +148,25 @@ public class ChannelAnalyzeService {
                 .mapToInt(PercentileScoringService.ScoreResult::totalScore).average().orElse(0));
         int avgVps = (int) Math.round(scoreResults.stream()
                 .mapToInt(PercentileScoringService.ScoreResult::vpsScore).average().orElse(0));
-        int avgEng = (int) Math.round(scoreResults.stream()
-                .mapToInt(PercentileScoringService.ScoreResult::engagementScore).average().orElse(0));
-        int avgLr = (int) Math.round(scoreResults.stream()
-                .mapToInt(PercentileScoringService.ScoreResult::likeRateScore).average().orElse(0));
+        int avgVsChAvg = (int) Math.round(scoreResults.stream()
+                .mapToInt(PercentileScoringService.ScoreResult::vsChannelAvgScore).average().orElse(0));
+        int avgDailyViews = (int) Math.round(scoreResults.stream()
+                .mapToInt(PercentileScoringService.ScoreResult::dailyViewsScore).average().orElse(0));
 
         // 이전 점수 비교 코멘트 생성
-        String comment = generateScoreComment(channel, avgTotal, avgVps, avgEng, avgLr);
+        String comment = generateScoreComment(channel, avgTotal, avgVps, avgVsChAvg, avgDailyViews);
 
         // 현재 점수를 DB에 저장 (다음 분석 시 비교용)
-        savePercentileScore(channel, avgTotal, avgVps, avgEng, avgLr);
+        savePercentileScore(channel, avgTotal, avgVps, avgVsChAvg, avgDailyViews);
 
         Map<String, Object> channelScoreMap = new LinkedHashMap<>();
         channelScoreMap.put("overall", avgTotal);
         channelScoreMap.put("topPercent", 100 - avgTotal);
         channelScoreMap.put("comment", comment);
         channelScoreMap.put("factors", List.of(
-                Map.of("name", "도달력", "score", avgVps, "weight", 60, "description", "구독자 대비 조회수"),
-                Map.of("name", "시청자 반응", "score", avgEng, "weight", 25, "description", "좋아요+댓글 비율"),
-                Map.of("name", "콘텐츠 만족도", "score", avgLr, "weight", 15, "description", "좋아요 비율")
+                Map.of("name", "도달력", "score", avgVps, "weight", 40, "description", "구독자 대비 조회수"),
+                Map.of("name", "채널 평균 대비", "score", avgVsChAvg, "weight", 40, "description", "채널 평소 성적 대비 상대 성과"),
+                Map.of("name", "일평균 조회수", "score", avgDailyViews, "weight", 20, "description", "시간 대비 조회수 성장 속도")
         ));
 
         // channelScore를 channel 바로 다음에 삽입
@@ -387,18 +391,18 @@ public class ChannelAnalyzeService {
 
     // 영상별 점수 이유 생성 (템플릿)
     private String generateVideoReason(PercentileScoringService.ScoreResult sr) {
-        int vps = sr.vpsScore(), eng = sr.engagementScore(), lr = sr.likeRateScore();
+        int vps = sr.vpsScore(), vsChAvg = sr.vsChannelAvgScore(), daily = sr.dailyViewsScore();
 
         String strongName, weakName;
         int strongScore, weakScore;
 
-        if (vps >= eng && vps >= lr) { strongName = "도달력"; strongScore = vps; }
-        else if (eng >= lr) { strongName = "시청자 반응"; strongScore = eng; }
-        else { strongName = "콘텐츠 만족도"; strongScore = lr; }
+        if (vps >= vsChAvg && vps >= daily) { strongName = "도달력"; strongScore = vps; }
+        else if (vsChAvg >= daily) { strongName = "채널 평균 대비"; strongScore = vsChAvg; }
+        else { strongName = "일평균 조회수"; strongScore = daily; }
 
-        if (vps <= eng && vps <= lr) { weakName = "도달력"; weakScore = vps; }
-        else if (eng <= lr) { weakName = "시청자 반응"; weakScore = eng; }
-        else { weakName = "콘텐츠 만족도"; weakScore = lr; }
+        if (vps <= vsChAvg && vps <= daily) { weakName = "도달력"; weakScore = vps; }
+        else if (vsChAvg <= daily) { weakName = "채널 평균 대비"; weakScore = vsChAvg; }
+        else { weakName = "일평균 조회수"; weakScore = daily; }
 
         String strongPart = String.format("%s이(가) 상위 %d%%로 뛰어나요.", strongName, 100 - strongScore);
         String weakPart = weakScore < 50 ?
@@ -432,23 +436,42 @@ public class ChannelAnalyzeService {
     }
 
     // AI 개선 포인트 + 추천 액션 생성
+    @SuppressWarnings("unchecked")
     private Map<String, List<Map<String, String>>> generateImprovementsAndActions(
-            String title, PercentileScoringService.ScoreResult sr, List<Map<String, Object>> factors) {
+            String title, PercentileScoringService.ScoreResult sr,
+            List<Map<String, Object>> factors, Map<String, Object> audienceRetention) {
         try {
             StringBuilder factorDesc = new StringBuilder();
             for (Map<String, Object> f : factors) {
-                factorDesc.append(String.format("- %s: %d점 (%s)\n",
-                        f.get("name"), f.get("score"), f.get("rawValue")));
+                factorDesc.append(String.format("- %s: %d점, rawValue=%s, 채널평균대비=%s%%\n",
+                        f.get("name"), f.get("score"), f.get("rawValue"), f.get("changePercent")));
             }
+
+            String dropOffInfo = "";
+            if (audienceRetention != null && !audienceRetention.isEmpty()) {
+                Object seg = audienceRetention.get("mainDropOffSegment");
+                if (seg instanceof Map) {
+                    Map<String, Object> segMap = (Map<String, Object>) seg;
+                    dropOffInfo = String.format("주요 이탈 구간: %s~%s (위치: %s)\n",
+                            segMap.getOrDefault("startSeconds", ""),
+                            segMap.getOrDefault("endSeconds", ""),
+                            segMap.getOrDefault("description", ""));
+                }
+            }
+
             String prompt = String.format(
                     "유튜브 영상 분석 결과를 바탕으로 개선 포인트 2개와 추천 액션 3개를 작성해.\n" +
                     "영상 제목: %s\n" +
                     "종합 점수: %d/100\n" +
                     "%s" +
-                    "규칙: 각 항목은 title(10자 이내)과 description(25자 이내). 약점 기반 개선, 강점 기반 액션.\n" +
+                    "%s" +
+                    "규칙:\n" +
+                    "- 개선 포인트1: 주요 이탈 구간 기반으로 작성. title은 '초반 후킹이 약해요' 처럼 문제를 직접 표현(15자 이내). description은 구체적 시간대와 수치 포함(30자 이내).\n" +
+                    "- 개선 포인트2: 가장 점수 낮은 지표 기반. title은 핵심 문제(15자 이내). description은 현재 수치와 개선 방향(30자 이내).\n" +
+                    "- 추천 액션 3개: 영상 데이터 기반 구체적 행동 제안. title은 행동(15자 이내). description은 이유나 방법(30자 이내).\n" +
                     "반드시 아래 JSON 형식으로만 답변. 다른 텍스트 없이.\n" +
                     "{\"improvements\":[{\"title\":\"...\",\"description\":\"...\"}],\"actions\":[{\"title\":\"...\",\"description\":\"...\"}]}",
-                    title, sr.totalScore(), factorDesc.toString());
+                    title, sr.totalScore(), factorDesc.toString(), dropOffInfo);
             String raw = bedrockService.invokeModelPublic(prompt).trim();
             int start = raw.indexOf('{');
             int end = raw.lastIndexOf('}') + 1;
@@ -563,27 +586,34 @@ public class ChannelAnalyzeService {
 
         List<VideoCache> allVideos = videoCacheRepository.findByChannelIdOrderByVideoRankAsc(video.getChannelId());
 
+        long daysSinceUpload = video.getPublishedAt() != null
+                ? Math.max(1, java.time.temporal.ChronoUnit.DAYS.between(video.getPublishedAt(), java.time.LocalDate.now()))
+                : 30;
         PercentileScoringService.ScoreResult sr = percentileScoringService.score(
-                video.getViewCount(), video.getLikeCount(), video.getCommentCount(),
-                video.getDurationSeconds(), channel.getSubscriberCount(),
+                video.getViewCount(), channel.getSubscriberCount(),
+                channel.getAvgViewCount(), daysSinceUpload,
+                video.getDurationSeconds(),
                 video.getCategoryId() != null ? video.getCategoryId() : "0"
         );
 
+        Map<String, Object> scoreMap = new LinkedHashMap<>();
+        scoreMap.put("overall", sr.totalScore());
+        scoreMap.put("topPercent", 100 - sr.totalScore());
+        scoreMap.put("description", getScoreDescription(sr.totalScore()));
+
+        Map<String, Object> videoInfo = new LinkedHashMap<>();
+        videoInfo.put("videoId", video.getVideoId());
+        videoInfo.put("title", video.getTitle());
+        videoInfo.put("thumbnailUrl", video.getThumbnailUrl());
+        videoInfo.put("viewCount", video.getViewCount());
+        videoInfo.put("uploadDate", video.getPublishedAt() != null
+                ? video.getPublishedAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy.MM.dd")) : null);
+        videoInfo.put("category", resolveCategoryName(video.getCategoryId()));
+        videoInfo.put("durationSeconds", video.getDurationSeconds());
+        videoInfo.put("score", scoreMap);
+
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("videoId", video.getVideoId());
-        result.put("title", video.getTitle());
-        result.put("thumbnailUrl", video.getThumbnailUrl());
-        result.put("viewCount", video.getViewCount());
-        result.put("likeCount", video.getLikeCount());
-        result.put("commentCount", video.getCommentCount());
-        result.put("durationSeconds", video.getDurationSeconds());
-        result.put("channelId", video.getChannelId());
-        result.put("channelName", channel.getChannelName());
-        result.put("category", resolveCategoryName(video.getCategoryId()));
-        result.put("score", Map.of(
-                "overall", sr.totalScore(),
-                "topPercent", 100 - sr.totalScore()
-        ));
+        result.put("videoInfo", videoInfo);
 
         // Analytics API로 CTR, 시청 지속 시간, 추천 확장성 조회
         List<Map<String, Object>> factors = new ArrayList<>();
@@ -596,11 +626,11 @@ public class ChannelAnalyzeService {
                     .map(u -> u.getGoogleRefreshToken()).orElse(null);
             if (refreshToken != null) {
                 String accessToken = refreshGoogleAccessToken(refreshToken);
-                VideoFactorsResult fr = fetchVideoFactors(accessToken, video.getVideoId(), video.getDurationSeconds());
+                channelAvgCtr = channel.getSubscriberCount() > 0 ? channel.getAvgViewCount() / channel.getSubscriberCount() : 0;
+                VideoFactorsResult fr = fetchVideoFactors(accessToken, video.getVideoId(), video.getDurationSeconds(), channelAvgCtr, channel.getAvgWatchDurationSeconds(), video.getViewCount(), channel.getSubscriberCount());
                 factors = fr.factors();
-                videoCtr = fr.ctr();
+                videoCtr = fr.reach();
                 videoAvgWatchSec = fr.avgWatchSec();
-                try { channelAvgCtr = fetchChannelAvgCtr(accessToken); } catch (Exception e) { log.warn("채널 평균 CTR 조회 실패: {}", e.getMessage()); }
                 try { audienceRetention = fetchAudienceRetention(accessToken, video.getVideoId(), video.getDurationSeconds()); } catch (Exception e) { log.warn("시청자 유지율 조회 실패: {}", e.getMessage()); }
                 if (video.getPublishedAt() != null) {
                     try { videoGrowth = fetchViewGrowthData(accessToken, video.getVideoId(), video.getPublishedAt()); } catch (Exception e) { log.warn("영상 조회수 성장 조회 실패: {}", e.getMessage()); }
@@ -610,62 +640,51 @@ public class ChannelAnalyzeService {
         } catch (Exception e) {
             log.warn("영상 Analytics 조회 실패: {}", e.getMessage());
         }
-        result.put("factors", factors);
+        result.put("factors", factors.stream()
+                .map(f -> { Map<String, Object> m = new LinkedHashMap<>(f); m.remove("rawValue"); return m; })
+                .toList());
         result.put("audienceRetention", audienceRetention);
         result.put("insight", generateVideoInsight(video.getTitle(), sr, factors));
 
         Map<String, List<Map<String, String>>> improvementsAndActions =
-                generateImprovementsAndActions(video.getTitle(), sr, factors);
+                generateImprovementsAndActions(video.getTitle(), sr, factors, audienceRetention);
         result.put("improvements", improvementsAndActions.get("improvements"));
         result.put("recommendedActions", improvementsAndActions.get("actions"));
 
         result.put("scoreBasis", buildScoreBasis(videoCtr, channelAvgCtr, videoAvgWatchSec, channel, videoGrowth, channelAvgGrowth));
         result.put("viewGrowthData", Map.of("video", videoGrowth, "channelAvg", channelAvgGrowth));
 
-        // 채널 내 상대 순위
-        long betterThanCount = allVideos.stream()
-                .filter(v -> percentileScoringService.score(
-                        v.getViewCount(), v.getLikeCount(), v.getCommentCount(),
-                        v.getDurationSeconds(), channel.getSubscriberCount(),
-                        v.getCategoryId() != null ? v.getCategoryId() : "0"
-                ).totalScore() < sr.totalScore())
-                .count();
-        result.put("channelRank", Map.of(
-                "rank", video.getVideoRank(),
-                "total", allVideos.size(),
-                "betterThanPercent", allVideos.size() > 1
-                        ? (int) Math.round((double) betterThanCount / (allVideos.size() - 1) * 100) : 100
-        ));
-
         return result;
     }
 
-    private record VideoFactorsResult(List<Map<String, Object>> factors, double ctr, double avgWatchSec, double recommendPct) {}
+    private record VideoFactorsResult(List<Map<String, Object>> factors, double reach, double avgWatchSec, double recommendPct) {}
 
-    private VideoFactorsResult fetchVideoFactors(String accessToken, String videoId, long durationSeconds) throws Exception {
+    private VideoFactorsResult fetchVideoFactors(String accessToken, String videoId, long durationSeconds, double channelAvgReach, Double channelAvgWatchSec, long viewCount, long subscriberCount) throws Exception {
         String endDate   = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         String startDate = LocalDate.now().minusYears(2).format(DateTimeFormatter.ISO_LOCAL_DATE);
-        String filter    = "video%3D%3D" + videoId;
+        String filter    = "video==" + videoId;
 
         String metricsResp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
-                        + "&metrics=impressionsClickThroughRate,averageViewDuration"
+                        + "&metrics=averageViewDuration"
                         + "&filters=" + filter)
                 .header("Authorization", "Bearer " + accessToken)
                 .retrieve().bodyToMono(String.class).block();
 
         JsonNode metricsRows = objectMapper.readTree(metricsResp).path("rows");
-        double ctr = 0, avgWatchSec = 0;
+        double avgWatchSec = 0;
         if (!metricsRows.isEmpty()) {
-            ctr         = metricsRows.get(0).get(0).asDouble();
-            avgWatchSec = metricsRows.get(0).get(1).asDouble();
+            avgWatchSec = metricsRows.get(0).get(0).asDouble();
         }
+
+        // 도달률: 조회수 / 구독자수 (구독자 0이면 조회수 기반 추정)
+        double reach = subscriberCount > 0 ? (double) viewCount / subscriberCount : 0;
 
         String trafficResp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
                         + "&metrics=views&dimensions=insightTrafficSourceType"
                         + "&filters=" + filter)
@@ -681,31 +700,41 @@ public class ChannelAnalyzeService {
         }
         double recommendPct = totalViews > 0 ? suggestedViews / totalViews : 0;
 
-        int ctrScore       = calcCtrScore(ctr);
+        int reachScore     = calcReachScore(reach);
         int watchScore     = calcWatchDurationScore(avgWatchSec, durationSeconds);
         int recommendScore = calcRecommendScore(recommendPct);
 
         List<Map<String, Object>> factors = new ArrayList<>();
-        factors.add(new LinkedHashMap<>(Map.of(
-                "name", "CTR",
-                "score", ctrScore,
-                "rawValue", String.format("%.1f%%", ctr * 100),
-                "description", "노출 대비 클릭률"
-        )));
-        factors.add(new LinkedHashMap<>(Map.of(
-                "name", "시청 지속 시간",
-                "score", watchScore,
-                "rawValue", String.format("%.0f초 (유지율 %.0f%%)", avgWatchSec,
-                        durationSeconds > 0 ? avgWatchSec / durationSeconds * 100 : 0),
-                "description", "평균 시청 유지율"
-        )));
-        factors.add(new LinkedHashMap<>(Map.of(
-                "name", "추천 확장성",
-                "score", recommendScore,
-                "rawValue", String.format("%.1f%%", recommendPct * 100),
-                "description", "추천 알고리즘을 통한 유입 비율"
-        )));
-        return new VideoFactorsResult(factors, ctr, avgWatchSec, recommendPct);
+        Map<String, Object> reachFactor = new LinkedHashMap<>();
+        reachFactor.put("name", "도달률");
+        reachFactor.put("score", reachScore);
+        reachFactor.put("topPercent", 100 - reachScore);
+        reachFactor.put("rawValue", String.format("%.1f%%", reach * 100));
+        reachFactor.put("changePercent", channelAvgReach > 0
+                ? Math.round((reach - channelAvgReach) / channelAvgReach * 1000.0) / 10.0 : null);
+        reachFactor.put("description", getReachDescription(reachScore));
+        factors.add(reachFactor);
+
+        Map<String, Object> watchFactor = new LinkedHashMap<>();
+        watchFactor.put("name", "시청 지속 시간");
+        watchFactor.put("score", watchScore);
+        watchFactor.put("topPercent", 100 - watchScore);
+        watchFactor.put("rawValue", String.format("%.0f초 (유지율 %.0f%%)", avgWatchSec,
+                durationSeconds > 0 ? avgWatchSec / durationSeconds * 100 : 0));
+        watchFactor.put("changePercent", channelAvgWatchSec != null && channelAvgWatchSec > 0
+                ? Math.round((avgWatchSec - channelAvgWatchSec) / channelAvgWatchSec * 1000.0) / 10.0 : null);
+        watchFactor.put("description", getWatchDurationDescription(watchScore));
+        factors.add(watchFactor);
+
+        Map<String, Object> recommendFactor = new LinkedHashMap<>();
+        recommendFactor.put("name", "추천 확장성");
+        recommendFactor.put("score", recommendScore);
+        recommendFactor.put("topPercent", 100 - recommendScore);
+        recommendFactor.put("rawValue", String.format("%.1f%%", recommendPct * 100));
+        recommendFactor.put("changePercent", Math.round((recommendPct - 0.30) / 0.30 * 1000.0) / 10.0);
+        recommendFactor.put("description", getRecommendDescription(recommendScore));
+        factors.add(recommendFactor);
+        return new VideoFactorsResult(factors, reach, avgWatchSec, recommendPct);
     }
 
     private double fetchChannelAvgCtr(String accessToken) throws Exception {
@@ -713,7 +742,7 @@ public class ChannelAnalyzeService {
         String startDate = LocalDate.now().minusMonths(3).format(DateTimeFormatter.ISO_LOCAL_DATE);
         String resp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
                         + "&metrics=impressionsClickThroughRate")
                 .header("Authorization", "Bearer " + accessToken)
@@ -723,12 +752,12 @@ public class ChannelAnalyzeService {
     }
 
     private List<Map<String, Object>> fetchViewGrowthData(String accessToken, String videoId, LocalDate publishedAt) throws Exception {
-        LocalDate endDate = publishedAt.plusDays(6);
+        LocalDate endDate = publishedAt.plusDays(7);
         if (endDate.isAfter(LocalDate.now())) endDate = LocalDate.now();
-        String filter = "video%3D%3D" + videoId;
+        String filter = "video==" + videoId;
         String resp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + publishedAt.format(DateTimeFormatter.ISO_LOCAL_DATE)
                         + "&endDate=" + endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
                         + "&metrics=views&dimensions=day&filters=" + filter + "&sort=day")
@@ -746,11 +775,11 @@ public class ChannelAnalyzeService {
     }
 
     private List<Map<String, Object>> fetchChannelAvgViewGrowth(String accessToken, LocalDate publishedAt, int videoCount) throws Exception {
-        LocalDate endDate = publishedAt.plusDays(6);
+        LocalDate endDate = publishedAt.plusDays(7);
         if (endDate.isAfter(LocalDate.now())) endDate = LocalDate.now();
         String resp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + publishedAt.format(DateTimeFormatter.ISO_LOCAL_DATE)
                         + "&endDate=" + endDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
                         + "&metrics=views&dimensions=day&sort=day")
@@ -774,7 +803,7 @@ public class ChannelAnalyzeService {
         List<String> basis = new ArrayList<>();
         if (videoCtr > 0 && channelAvgCtr > 0) {
             double diff = (videoCtr - channelAvgCtr) * 100;
-            basis.add(String.format("CTR이 채널 평균(%.1f%%) 대비 %.1f%% %s. (%.1f%%)",
+            basis.add(String.format("도달률이 채널 평균(%.1f%%) 대비 %.1f%% %s. (%.1f%%)",
                     channelAvgCtr * 100, Math.abs(diff), diff >= 0 ? "높습니다" : "낮습니다", videoCtr * 100));
         }
         if (videoAvgWatchSec > 0 && channel.getAvgWatchDurationSeconds() != null) {
@@ -803,13 +832,13 @@ public class ChannelAnalyzeService {
     private Map<String, Object> fetchAudienceRetention(String accessToken, String videoId, long durationSeconds) throws Exception {
         String endDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         String startDate = LocalDate.now().minusYears(2).format(DateTimeFormatter.ISO_LOCAL_DATE);
-        String filter = "video%3D%3D" + videoId;
+        String filter = "video==" + videoId;
 
         String retentionResp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
-                        + "&metrics=audienceWatched"
+                        + "&metrics=audienceWatchRatio"
                         + "&dimensions=elapsedVideoTimeRatio"
                         + "&filters=" + filter
                         + "&sort=elapsedVideoTimeRatio")
@@ -820,26 +849,42 @@ public class ChannelAnalyzeService {
         if (rows.isEmpty()) return new LinkedHashMap<>();
 
         int n = rows.size();
+        double[] ratios = new double[n];
         double[] retentionPcts = new double[n];
         long[] timeSecs = new long[n];
 
         double baseVal = rows.get(0).get(1).asDouble();
         if (baseVal <= 0) baseVal = 1.0;
 
-        List<Map<String, Object>> curve = new ArrayList<>();
         for (int i = 0; i < n; i++) {
-            double ratio = rows.get(i).get(0).asDouble();
+            ratios[i] = rows.get(i).get(0).asDouble();
             double watched = rows.get(i).get(1).asDouble();
             retentionPcts[i] = watched / baseVal * 100;
-            timeSecs[i] = Math.round(ratio * durationSeconds);
-
-            Map<String, Object> point = new LinkedHashMap<>();
-            point.put("timeSeconds", timeSecs[i]);
-            point.put("retentionPercent", Math.round(retentionPcts[i] * 10.0) / 10.0);
-            curve.add(point);
+            timeSecs[i] = Math.round(ratios[i] * durationSeconds);
         }
 
-        // 가장 급격한 이탈 구간 탐지 (슬라이딩 윈도우)
+        // 영상 길이를 5등분한 구간별 유지율 (0 포함 6개 포인트)
+        List<Map<String, Object>> sections = new ArrayList<>();
+        for (int s = 0; s <= 5; s++) {
+            long sectionTimeSec = durationSeconds * s / 5;
+            double targetRatio = (double) s / 5;
+            double closestPct = s == 0 ? 100.0 : retentionPcts[n - 1];
+            double minDiff = Double.MAX_VALUE;
+            for (int i = 0; i < n; i++) {
+                double diff = Math.abs(ratios[i] - targetRatio);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestPct = retentionPcts[i];
+                }
+            }
+            Map<String, Object> section = new LinkedHashMap<>();
+            section.put("timeSeconds", sectionTimeSec);
+            section.put("label", (sectionTimeSec / 60) + "분");
+            section.put("retentionPercent", Math.round(closestPct * 10.0) / 10.0);
+            sections.add(section);
+        }
+
+        // 슬라이딩 윈도우로 가장 급격한 이탈 구간 탐지
         int windowSize = Math.max(2, n / 20);
         int dropStart = 0;
         double maxDrop = Double.MIN_VALUE;
@@ -853,20 +898,26 @@ public class ChannelAnalyzeService {
         long dropStartSec = timeSecs[dropStart];
         long dropEndSec = timeSecs[Math.min(dropStart + windowSize, n - 1)];
 
-        String tip;
-        double startRatio = durationSeconds > 0 ? (double) dropStartSec / durationSeconds : 0;
-        if (startRatio < 0.1) {
-            tip = "초반 후킹을 강화하면 더 많은 시청자를 붙잡을 수 있어요.";
-        } else if (startRatio < 0.5) {
-            tip = "중반부 흐름을 더 긴장감 있게 구성하면 이탈을 줄일 수 있어요.";
+        // 이탈 구간이 속하는 5등분 섹션 레이블
+        int dropSectionIdx = (int) Math.min(4, dropStartSec * 5 / Math.max(1, durationSeconds));
+        long sectionStart = durationSeconds * dropSectionIdx / 5;
+        long sectionEnd = durationSeconds * (dropSectionIdx + 1) / 5;
+        String sectionLabel = (sectionStart / 60) + "분~" + (sectionEnd / 60) + "분";
+
+        // 초반/중반/후반 3단계 description
+        double dropPosition = durationSeconds > 0 ? (double) dropStartSec / durationSeconds : 0;
+        String description;
+        if (dropPosition < 0.33) {
+            description = "초반 후킹을 강화하면 더 많은 시청자를 붙잡을 수 있어요.";
+        } else if (dropPosition < 0.66) {
+            description = "중반부 흐름을 더 긴장감 있게 구성하면 이탈을 줄일 수 있어요.";
         } else {
-            tip = "마무리 구성을 강화하면 완주율을 높일 수 있어요.";
+            description = "마무리 구성을 강화하면 완주율을 높일 수 있어요.";
         }
 
-        // 평균 유지율 = avgWatchSeconds / durationSeconds
         String avgWatchResp = WebClient.create().get()
                 .uri("https://youtubeanalytics.googleapis.com/v2/reports"
-                        + "?ids=channel%3D%3DMINE"
+                        + "?ids=channel==MINE"
                         + "&startDate=" + startDate + "&endDate=" + endDate
                         + "&metrics=averageViewDuration"
                         + "&filters=" + filter)
@@ -881,25 +932,31 @@ public class ChannelAnalyzeService {
         int avgRetentionPercent = durationSeconds > 0
                 ? (int) Math.round((double) avgWatchSeconds / durationSeconds * 100) : 0;
 
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("curve", curve);
-        result.put("avgWatchSeconds", avgWatchSeconds);
-        result.put("avgRetentionPercent", avgRetentionPercent);
         Map<String, Object> dropOffSegment = new LinkedHashMap<>();
         dropOffSegment.put("startSeconds", dropStartSec);
         dropOffSegment.put("endSeconds", dropEndSec);
-        dropOffSegment.put("tip", tip);
+        dropOffSegment.put("description", description);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sections", sections);
+        result.put("avgWatchSeconds", avgWatchSeconds);
         result.put("mainDropOffSegment", dropOffSegment);
         return result;
     }
 
-    private int calcCtrScore(double ctr) {
-        double pct = ctr * 100;
-        if (pct >= 10) return 95;
-        if (pct >= 7)  return (int)(80 + (pct - 7)  / 3  * 15);
-        if (pct >= 5)  return (int)(65 + (pct - 5)  / 2  * 15);
-        if (pct >= 3)  return (int)(40 + (pct - 3)  / 2  * 25);
-        if (pct >= 1)  return (int)(10 + (pct - 1)  / 2  * 30);
+    private String formatMinutes(long seconds) {
+        long m = seconds / 60;
+        long s = seconds % 60;
+        return s == 0 ? m + "분" : m + "분 " + s + "초";
+    }
+
+    private int calcReachScore(double reach) {
+        double pct = reach * 100;
+        if (pct >= 100) return 95;
+        if (pct >= 50)  return (int)(80 + (pct - 50)  / 50  * 15);
+        if (pct >= 20)  return (int)(65 + (pct - 20)  / 30  * 15);
+        if (pct >= 5)   return (int)(40 + (pct - 5)   / 15  * 25);
+        if (pct >= 1)   return (int)(10 + (pct - 1)   / 4   * 30);
         return (int)(pct * 10);
     }
 
@@ -920,6 +977,35 @@ public class ChannelAnalyzeService {
         if (pct >= 15) return (int)(50 + (pct - 15) / 15 * 25);
         if (pct >= 5)  return (int)(20 + (pct - 5)  / 10 * 30);
         return (int)(pct / 5 * 20);
+    }
+
+    private String getScoreDescription(int score) {
+        if (score >= 90) return "이 영상은 모든 지표에서 최상위권에 속하며, 추천 알고리즘 확장성과 시청자 반응이 매우 뛰어난 콘텐츠입니다.";
+        if (score >= 80) return "이 영상은 클릭률과 시청 유지율이 높아 추천 확장성이 우수한 콘텐츠입니다.";
+        if (score >= 65) return "이 영상은 평균 이상의 성과를 보이며, 일부 지표를 개선하면 더 높은 확장성을 기대할 수 있습니다.";
+        if (score >= 50) return "이 영상은 평균적인 성과를 보이고 있습니다. 클릭률이나 시청 유지율을 개선하면 추천 노출을 늘릴 수 있습니다.";
+        return "이 영상은 아직 추천 알고리즘에 최적화되지 않았습니다. 썸네일, 제목, 초반 후킹을 개선해 보세요.";
+    }
+
+    private String getReachDescription(int score) {
+        if (score >= 80) return "구독자 대비 조회수가 매우 높아 콘텐츠 도달력이 뛰어납니다.";
+        if (score >= 60) return "도달률이 양호합니다.";
+        if (score >= 40) return "도달률이 평균 수준입니다. 썸네일이나 제목 개선을 고려해보세요.";
+        return "도달률이 낮습니다. 썸네일과 제목을 개선해보세요.";
+    }
+
+    private String getWatchDurationDescription(int score) {
+        if (score >= 80) return "시청 지속 시간이 매우 길어 콘텐츠 몰입도가 높습니다.";
+        if (score >= 60) return "시청 지속 시간이 양호합니다.";
+        if (score >= 40) return "시청 지속 시간이 평균 수준입니다. 초반 후킹을 강화해보세요.";
+        return "시청 지속 시간이 짧습니다. 콘텐츠 구성을 개선해보세요.";
+    }
+
+    private String getRecommendDescription(int score) {
+        if (score >= 80) return "추천 알고리즘 확장성이 매우 높습니다.";
+        if (score >= 60) return "추천 확장성이 양호합니다.";
+        if (score >= 40) return "추천 확장성이 평균 수준입니다.";
+        return "추천 확장성이 낮습니다. 시청 유지율과 참여도를 높여보세요.";
     }
 
     private String resolveCategoryName(String categoryId) {
