@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * S3에 저장된 백분위 테이블을 기반으로 영상 점수를 계산하는 서비스.
  * 비교 그룹 = 구독자 구간 × 숏폼/롱폼 × 카테고리
- * 점수 = VPS 백분위 × 0.60 + 참여율 백분위 × 0.25 + 좋아요율 백분위 × 0.15
+ * 점수 = VPS 백분위 × 0.40 + 채널평균대비 백분위 × 0.40 + 일평균조회수 백분위 × 0.20
  */
 @Service
 @Slf4j
@@ -68,7 +68,7 @@ public class PercentileScoringService {
             tablesNode.fieldNames().forEachRemaining(key -> {
                 JsonNode group = tablesNode.get(key);
                 Map<String, double[]> metrics = new HashMap<>();
-                for (String metric : List.of("vps", "engagement", "like_rate")) {
+                for (String metric : List.of("vps", "engagement", "like_rate", "vs_channel_avg", "daily_views")) {
                     JsonNode arr = group.path(metric);
                     if (arr.isArray()) {
                         double[] vals = new double[arr.size()];
@@ -89,17 +89,24 @@ public class PercentileScoringService {
 
     /**
      * 영상 점수 계산 (0~100)
+     * @param viewCount 조회수
+     * @param subscriberCount 구독자수
+     * @param channelAvgViews 채널 평균 조회수
+     * @param daysSinceUpload 업로드 후 경과일
+     * @param durationSec 영상 길이(초)
+     * @param categoryId 카테고리 ID
      */
-    public ScoreResult score(long viewCount, long likeCount, long commentCount,
-                             long durationSec, long subscriberCount, String categoryId) {
+    public ScoreResult score(long viewCount, long subscriberCount,
+                             double channelAvgViews, long daysSinceUpload,
+                             long durationSec, String categoryId) {
         if (viewCount == 0) {
             return new ScoreResult(0, 0, 0, 0, false);
         }
 
         long effectiveSubscribers = Math.max(1, subscriberCount);
         double vps = (double) viewCount / effectiveSubscribers;
-        double engagementRate = (double) (likeCount + commentCount) / viewCount;
-        double likeRate = (double) likeCount / viewCount;
+        double vsChannelAvg = channelAvgViews > 0 ? (double) viewCount / channelAvgViews : 1.0;
+        double dailyViews = (double) viewCount / Math.max(1, daysSinceUpload);
         boolean isShort = durationSec < 60;
 
         String key = subTier(subscriberCount) + "_" + (isShort ? "1" : "0") + "_" + categoryId;
@@ -120,11 +127,11 @@ public class PercentileScoringService {
         }
 
         int vpsScore = percentile(vps, group.get("vps"));
-        int engScore = percentile(engagementRate, group.get("engagement"));
-        int lrScore = percentile(likeRate, group.get("like_rate"));
-        int total = (int) Math.round(vpsScore * 0.60 + engScore * 0.25 + lrScore * 0.15);
+        int vsChAvgScore = percentile(vsChannelAvg, group.get("vs_channel_avg"));
+        int dailyViewsScore = percentile(dailyViews, group.get("daily_views"));
+        int total = (int) Math.round(vpsScore * 0.40 + vsChAvgScore * 0.40 + dailyViewsScore * 0.20);
 
-        return new ScoreResult(total, vpsScore, engScore, lrScore, true);
+        return new ScoreResult(total, vpsScore, vsChAvgScore, dailyViewsScore, true);
     }
 
     private int percentile(double value, double[] thresholds) {
@@ -150,5 +157,5 @@ public class PercentileScoringService {
         return collectedAt;
     }
 
-    public record ScoreResult(int totalScore, int vpsScore, int engagementScore, int likeRateScore, boolean matched) {}
+    public record ScoreResult(int totalScore, int vpsScore, int vsChannelAvgScore, int dailyViewsScore, boolean matched) {}
 }
