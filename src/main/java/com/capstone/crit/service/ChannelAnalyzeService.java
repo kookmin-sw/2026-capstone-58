@@ -122,9 +122,13 @@ public class ChannelAnalyzeService {
         List<PercentileScoringService.ScoreResult> scoreResults = new ArrayList<>();
         List<Map<String, Object>> percentileVideoScores = new ArrayList<>();
         for (VideoCache video : videos) {
+            long daysSinceUpload = video.getPublishedAt() != null
+                    ? Math.max(1, java.time.temporal.ChronoUnit.DAYS.between(video.getPublishedAt(), java.time.LocalDate.now()))
+                    : 30;
             PercentileScoringService.ScoreResult sr = percentileScoringService.score(
-                    video.getViewCount(), video.getLikeCount(), video.getCommentCount(),
-                    video.getDurationSeconds(), channel.getSubscriberCount(),
+                    video.getViewCount(), channel.getSubscriberCount(),
+                    channel.getAvgViewCount(), daysSinceUpload,
+                    video.getDurationSeconds(),
                     video.getCategoryId() != null ? video.getCategoryId() : "0"
             );
             scoreResults.add(sr);
@@ -144,25 +148,25 @@ public class ChannelAnalyzeService {
                 .mapToInt(PercentileScoringService.ScoreResult::totalScore).average().orElse(0));
         int avgVps = (int) Math.round(scoreResults.stream()
                 .mapToInt(PercentileScoringService.ScoreResult::vpsScore).average().orElse(0));
-        int avgEng = (int) Math.round(scoreResults.stream()
-                .mapToInt(PercentileScoringService.ScoreResult::engagementScore).average().orElse(0));
-        int avgLr = (int) Math.round(scoreResults.stream()
-                .mapToInt(PercentileScoringService.ScoreResult::likeRateScore).average().orElse(0));
+        int avgVsChAvg = (int) Math.round(scoreResults.stream()
+                .mapToInt(PercentileScoringService.ScoreResult::vsChannelAvgScore).average().orElse(0));
+        int avgDailyViews = (int) Math.round(scoreResults.stream()
+                .mapToInt(PercentileScoringService.ScoreResult::dailyViewsScore).average().orElse(0));
 
         // 이전 점수 비교 코멘트 생성
-        String comment = generateScoreComment(channel, avgTotal, avgVps, avgEng, avgLr);
+        String comment = generateScoreComment(channel, avgTotal, avgVps, avgVsChAvg, avgDailyViews);
 
         // 현재 점수를 DB에 저장 (다음 분석 시 비교용)
-        savePercentileScore(channel, avgTotal, avgVps, avgEng, avgLr);
+        savePercentileScore(channel, avgTotal, avgVps, avgVsChAvg, avgDailyViews);
 
         Map<String, Object> channelScoreMap = new LinkedHashMap<>();
         channelScoreMap.put("overall", avgTotal);
         channelScoreMap.put("topPercent", 100 - avgTotal);
         channelScoreMap.put("comment", comment);
         channelScoreMap.put("factors", List.of(
-                Map.of("name", "도달력", "score", avgVps, "weight", 60, "description", "구독자 대비 조회수"),
-                Map.of("name", "시청자 반응", "score", avgEng, "weight", 25, "description", "좋아요+댓글 비율"),
-                Map.of("name", "콘텐츠 만족도", "score", avgLr, "weight", 15, "description", "좋아요 비율")
+                Map.of("name", "도달력", "score", avgVps, "weight", 40, "description", "구독자 대비 조회수"),
+                Map.of("name", "채널 평균 대비", "score", avgVsChAvg, "weight", 40, "description", "채널 평소 성적 대비 상대 성과"),
+                Map.of("name", "일평균 조회수", "score", avgDailyViews, "weight", 20, "description", "시간 대비 조회수 성장 속도")
         ));
 
         // channelScore를 channel 바로 다음에 삽입
@@ -387,18 +391,18 @@ public class ChannelAnalyzeService {
 
     // 영상별 점수 이유 생성 (템플릿)
     private String generateVideoReason(PercentileScoringService.ScoreResult sr) {
-        int vps = sr.vpsScore(), eng = sr.engagementScore(), lr = sr.likeRateScore();
+        int vps = sr.vpsScore(), vsChAvg = sr.vsChannelAvgScore(), daily = sr.dailyViewsScore();
 
         String strongName, weakName;
         int strongScore, weakScore;
 
-        if (vps >= eng && vps >= lr) { strongName = "도달력"; strongScore = vps; }
-        else if (eng >= lr) { strongName = "시청자 반응"; strongScore = eng; }
-        else { strongName = "콘텐츠 만족도"; strongScore = lr; }
+        if (vps >= vsChAvg && vps >= daily) { strongName = "도달력"; strongScore = vps; }
+        else if (vsChAvg >= daily) { strongName = "채널 평균 대비"; strongScore = vsChAvg; }
+        else { strongName = "일평균 조회수"; strongScore = daily; }
 
-        if (vps <= eng && vps <= lr) { weakName = "도달력"; weakScore = vps; }
-        else if (eng <= lr) { weakName = "시청자 반응"; weakScore = eng; }
-        else { weakName = "콘텐츠 만족도"; weakScore = lr; }
+        if (vps <= vsChAvg && vps <= daily) { weakName = "도달력"; weakScore = vps; }
+        else if (vsChAvg <= daily) { weakName = "채널 평균 대비"; weakScore = vsChAvg; }
+        else { weakName = "일평균 조회수"; weakScore = daily; }
 
         String strongPart = String.format("%s이(가) 상위 %d%%로 뛰어나요.", strongName, 100 - strongScore);
         String weakPart = weakScore < 50 ?
@@ -582,9 +586,13 @@ public class ChannelAnalyzeService {
 
         List<VideoCache> allVideos = videoCacheRepository.findByChannelIdOrderByVideoRankAsc(video.getChannelId());
 
+        long daysSinceUpload = video.getPublishedAt() != null
+                ? Math.max(1, java.time.temporal.ChronoUnit.DAYS.between(video.getPublishedAt(), java.time.LocalDate.now()))
+                : 30;
         PercentileScoringService.ScoreResult sr = percentileScoringService.score(
-                video.getViewCount(), video.getLikeCount(), video.getCommentCount(),
-                video.getDurationSeconds(), channel.getSubscriberCount(),
+                video.getViewCount(), channel.getSubscriberCount(),
+                channel.getAvgViewCount(), daysSinceUpload,
+                video.getDurationSeconds(),
                 video.getCategoryId() != null ? video.getCategoryId() : "0"
         );
 
