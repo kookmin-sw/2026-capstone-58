@@ -61,7 +61,7 @@ const DetailScoreContainer = ({
   const Icon = config.Icon;
 
   return (
-    <div className="flex flex-col w-full px-8 py-7 gap-4 justify-center items-center rounded-xl bg-white border-[0.1px] border-[#8257B4]">
+    <div className="flex flex-col w-full px-8 py-7 gap-4 justify-start items-center rounded-xl bg-white border-[0.1px] border-[#8257B4]">
       <div className="flex w-full justify-start items-start gap-2 rounded-xl">
         <div className={`flex justify-center items-center p-3 rounded-xl ${config.bgColor}`}>
           <Icon className="w-7 h-7" />
@@ -105,7 +105,7 @@ const DetailScoreContainer = ({
           {isLoading ? (
             <span className="animate-loading-pulse">평균 대비 계산 중</span>
           ) : (
-            `평균 대비 ${avgDiff >= 0 ? '+' : '-'} ${Math.abs(avgDiff)}%`
+            `평균 대비 ${avgDiff >= 0 ? '+' : ''} ${avgDiff}%`
           )}
         </div>
       </div>
