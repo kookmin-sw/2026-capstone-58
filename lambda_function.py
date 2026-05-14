@@ -166,37 +166,10 @@ def lambda_handler(event, context):
     if event and isinstance(event, dict):
         category_ids = event.get("categories")
 
-    # 전체 카테고리 요청 시, 7일 이내 수집된 카테고리는 스킵
     if category_ids is None:
         category_ids = list(CATEGORIES.keys())
 
-    force = event.get("force", False) if event and isinstance(event, dict) else False
-
-    existing = load_existing_from_s3()
-    cat_timestamps = existing.get("category_timestamps", {})
-    now = datetime.now(timezone.utc)
-    stale_days = 7
-
-    fresh = []
-    skipped = []
-    for cat_id in category_ids:
-        if not force:
-            ts = cat_timestamps.get(cat_id)
-            if ts:
-                collected = datetime.fromisoformat(ts)
-                age = (now - collected).days
-                if age < stale_days:
-                    skipped.append(cat_id)
-                    continue
-        fresh.append(cat_id)
-
-    if not fresh:
-        return {"statusCode": 200, "body": json.dumps({
-            "message": "All categories are fresh (< 7 days)",
-            "skipped": skipped,
-        })}
-
-    videos, total_channels, categories, cat_stats = collect_all_categories(fresh)
+    videos, total_channels, categories, cat_stats = collect_all_categories(category_ids)
 
     if not videos:
         return {"statusCode": 200, "body": json.dumps({"message": "No videos collected"})}
