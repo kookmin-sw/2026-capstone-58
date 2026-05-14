@@ -1,37 +1,13 @@
 import BoltIcon from '@/assets/icons/score-icons/video-detail/bolt-icon.svg?react';
 import CardItem from '../cardItem';
+import useCurrentVideoStore from '@/stores/useCurrentVideoStore';
 
-interface RecommendAction {
-  iconType: 'Alarm' | 'Picture' | 'Camera';
-  title: string;
-  comment: string;
-}
+const RecommendActionCard = () => {
+  const videoAnalysis = useCurrentVideoStore(s => s.videoAnalysis);
+  const isLoading = useCurrentVideoStore(s => s.isLoading);
 
-interface RecommendActionCardProps {
-  isLoading?: boolean;
-  actions?: RecommendAction[];
-}
-
-const RecommendActionCard = ({ isLoading = false, actions }: RecommendActionCardProps) => {
-  const defaultActions: RecommendAction[] = [
-    {
-      iconType: 'Camera',
-      title: '비슷한 주제로 후속 영상 만들기',
-      comment: '이 주제는 시청자 반응이 좋았어요.',
-    },
-    {
-      iconType: 'Camera',
-      title: 'Shorts로 재가공하기',
-      comment: '핵심 장면을 shorts로 만들어 유입을 늘려보세요.',
-    },
-    {
-      iconType: 'Camera',
-      title: '썸네일 A/B 테스트 진행하기',
-      comment: '다른 버전의 썸네일로 CTR을 더 높여보세요.',
-    },
-  ];
-
-  const displayActions = actions || defaultActions;
+  const recommendedActions = videoAnalysis?.recommendedActions;
+  const showLoading = isLoading || !recommendedActions;
 
   return (
     <div className="flex flex-col w-full px-6 py-5 gap-4.5 justify-center items-center bg-white rounded-xl border-[0.1px] border-[#8257B4]">
@@ -39,20 +15,22 @@ const RecommendActionCard = ({ isLoading = false, actions }: RecommendActionCard
         <BoltIcon className="w-6 h-6" />
         <div className="text-[#6452CE] typo-body4-semibold">추천 액션</div>
       </div>
-      <div className="flex flex-col justify-center items-center gap-5">
-        {isLoading ? (
+      <div className="flex flex-col w-full justify-center items-center gap-5">
+        {showLoading ? (
           <div className="text-gray-400 animate-loading-pulse typo-body5 py-4">
             추천 액션을 생성하고 있습니다...
           </div>
-        ) : (
-          displayActions.map((action, index) => (
+        ) : recommendedActions.length > 0 ? (
+          recommendedActions.map((action, index) => (
             <CardItem
               key={index}
-              iconType={action.iconType}
+              iconType="Camera"
               title={action.title}
-              comment={action.comment}
+              comment={action.description}
             />
           ))
+        ) : (
+          <div className="text-gray-400 typo-body5 py-4">추천 액션 데이터 없음</div>
         )}
       </div>
     </div>

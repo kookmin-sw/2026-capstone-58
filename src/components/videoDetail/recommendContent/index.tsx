@@ -1,28 +1,11 @@
 import ContentItem from './contentItem';
+import useCurrentVideoStore from '@/stores/useCurrentVideoStore';
 
-interface RecommendContentItem {
-  title: string;
-  minExpectedViews: number;
-  maxExpectedViews: number;
-}
+const RecommendContent = () => {
+  const isLoading = useCurrentVideoStore(s => s.isLoading);
 
-interface RecommendContentProps {
-  isLoading?: boolean;
-  contents?: RecommendContentItem[];
-}
-
-const RecommendContent = ({ isLoading = false, contents }: RecommendContentProps) => {
-  const defaultContents: RecommendContentItem[] = [
-    {
-      title: '외국 프로 선수에게 한국 서버를 시켜봤다.',
-      minExpectedViews: 12,
-      maxExpectedViews: 18,
-    },
-    { title: 'K-티모 말고 K-야스오를 보여준다면?', minExpectedViews: 9, maxExpectedViews: 15 },
-    { title: '외국인이 본 한국 롤 문화 반응', minExpectedViews: 8, maxExpectedViews: 13 },
-  ];
-
-  const displayContents = contents || defaultContents;
+  // 이 컴포넌트는 API 응답에 해당 데이터가 없음
+  // 나중에 API에 추가되면 videoAnalysis에서 가져오면 됨
 
   return (
     <div className="flex flex-col w-full px-6 py-7 justify-center items-start gap-3.5 bg-white rounded-xl border-[0.1px] border-[#8257B4]">
@@ -35,14 +18,9 @@ const RecommendContent = ({ isLoading = false, contents }: RecommendContentProps
             추천 콘텐츠를 생성하고 있습니다...
           </div>
         ) : (
-          displayContents.map((content, index) => (
-            <ContentItem
-              key={index}
-              title={content.title}
-              minExpectedViews={content.minExpectedViews}
-              maxExpectedViews={content.maxExpectedViews}
-            />
-          ))
+          <div className="flex w-full justify-center items-center py-8 text-gray-400 typo-body5">
+            추천 콘텐츠 데이터 없음 (API 미구현)
+          </div>
         )}
       </div>
     </div>
