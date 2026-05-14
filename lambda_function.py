@@ -7,132 +7,19 @@ Lambda 함수: YouTube 데이터 수집 → 백분위 테이블 계산 → S3 �
 
 import json
 import os
-import re
 from datetime import datetime, timezone
 
 import boto3
-import requests
+
+from youtube_api import (
+    CATEGORIES, discover_channels, get_channel, get_video_ids, get_videos, sub_tier,
+)
 
 # ── 환경변수 ──
 YOUTUBE_API_KEY = os.environ["YOUTUBE_API_KEY"]
 S3_BUCKET = os.environ["S3_BUCKET"]
 
-BASE = "https://www.googleapis.com/youtube/v3"
 s3 = boto3.client("s3")
-
-CATEGORIES = {
-    "1": "Film & Animation", "2": "Autos & Vehicles", "10": "Music",
-    "15": "Pets & Animals", "17": "Sports", "19": "Travel & Events",
-    "20": "Gaming", "22": "People & Blogs", "23": "Comedy",
-    "24": "Entertainment", "25": "News & Politics", "26": "Howto & Style",
-    "27": "Education", "28": "Science & Technology",
-}
-
-
-# ── YouTube API ───────────────────────────────────────────────────
-
-def discover_channels(category_id, max_pages=4):
-    """mostPopularで채널 발견. 결과 0이면 search.list로 fallback."""
-    channel_ids = _discover_by_popular(category_id, max_pages)
-    if not channel_ids:
-        channel_ids = _discover_by_search(category_id, max_pages)
-    return list(channel_ids)
-
-
-def _discover_by_popular(category_id, max_pages):
-    channel_ids = set()
-    page_token = None
-    for _ in range(max_pages):
-        params = {
-            "key": YOUTUBE_API_KEY, "chart": "mostPopular",
-            "videoCategoryId": category_id, "regionCode": "KR",
-            "part": "snippet", "maxResults": 50,
-        }
-        if page_token:
-            params["pageToken"] = page_token
-        r = requests.get(f"{BASE}/videos", params=params).json()
-        for item in r.get("items", []):
-            channel_ids.add(item["snippet"]["channelId"])
-        page_token = r.get("nextPageToken")
-        if not page_token:
-            break
-    return channel_ids
-
-
-def _discover_by_search(category_id, max_pages):
-    channel_ids = set()
-    page_token = None
-    for _ in range(max_pages):
-        params = {
-            "key": YOUTUBE_API_KEY, "type": "video",
-            "videoCategoryId": category_id, "regionCode": "KR",
-            "part": "snippet", "maxResults": 50, "order": "viewCount",
-        }
-        if page_token:
-            params["pageToken"] = page_token
-        r = requests.get(f"{BASE}/search", params=params).json()
-        for item in r.get("items", []):
-            channel_ids.add(item["snippet"]["channelId"])
-        page_token = r.get("nextPageToken")
-        if not page_token:
-            break
-    return channel_ids
-
-
-def get_channel(channel_id):
-    r = requests.get(f"{BASE}/channels", params={
-        "key": YOUTUBE_API_KEY, "id": channel_id,
-        "part": "snippet,statistics,contentDetails",
-    }).json()
-    if not r.get("items"):
-        return None
-    item = r["items"][0]
-    stats = item["statistics"]
-    return {
-        "channel_id": item["id"],
-        "subscriber_count": int(stats.get("subscriberCount", 0)),
-        "uploads_playlist": item["contentDetails"]["relatedPlaylists"]["uploads"],
-    }
-
-
-def get_video_ids(uploads_playlist):
-    r = requests.get(f"{BASE}/playlistItems", params={
-        "key": YOUTUBE_API_KEY, "playlistId": uploads_playlist,
-        "part": "contentDetails", "maxResults": 50,
-    }).json()
-    return [item["contentDetails"]["videoId"] for item in r.get("items", [])]
-
-
-def get_videos(video_ids):
-    if not video_ids:
-        return []
-    r = requests.get(f"{BASE}/videos", params={
-        "key": YOUTUBE_API_KEY, "id": ",".join(video_ids),
-        "part": "snippet,statistics,contentDetails",
-    }).json()
-    videos = []
-    for item in r.get("items", []):
-        stats = item["statistics"]
-        views = int(stats.get("viewCount", 0))
-        likes = int(stats.get("likeCount", 0))
-        comments = int(stats.get("commentCount", 0))
-        dur = _parse_duration(item["contentDetails"].get("duration", "PT0S"))
-        if views == 0:
-            continue
-        videos.append({
-            "view_count": views, "like_count": likes, "comment_count": comments,
-            "duration_sec": dur, "category_id": item["snippet"].get("categoryId", ""),
-            "is_short": dur < 60,
-        })
-    return videos
-
-
-def _parse_duration(iso):
-    m = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", iso)
-    if not m:
-        return 0
-    h, mi, s = (int(x) if x else 0 for x in m.groups())
-    return h * 3600 + mi * 60 + s
 
 
 # ── 수집 ──────────────────────────────────────────────────────────
@@ -146,30 +33,40 @@ def collect_all_categories(category_ids=None):
     cat_stats = {}
 
     for cat_id in category_ids:
-        channel_ids = discover_channels(cat_id)
+        channel_ids = discover_channels(YOUTUBE_API_KEY, cat_id)
         cat_channels = 0
         cat_videos = 0
         cat_subs = []
 
         for ch_id in channel_ids:
-            ch = get_channel(ch_id)
+            ch = get_channel(YOUTUBE_API_KEY, ch_id)
             if not ch or ch["subscriber_count"] == 0:
                 continue
-            video_ids = get_video_ids(ch["uploads_playlist"])
-            videos = get_videos(video_ids)
+            video_ids = get_video_ids(YOUTUBE_API_KEY, ch["uploads_playlist"])
+            videos = get_videos(YOUTUBE_API_KEY, video_ids)
+
+            # 채널 평균 조회수 계산 (vs_channel_avg용)
+            channel_views = [v["view_count"] for v in videos if v["view_count"] > 0]
+            channel_avg_views = sum(channel_views) / len(channel_views) if channel_views else 1
+
             for v in videos:
+                if v["view_count"] == 0:
+                    continue
                 v["subscriber_count"] = ch["subscriber_count"]
                 v["vps"] = v["view_count"] / ch["subscriber_count"]
                 v["engagement_rate"] = (v["like_count"] + v["comment_count"]) / v["view_count"]
                 v["like_rate"] = v["like_count"] / v["view_count"]
-            all_videos.extend(videos)
+                v["vs_channel_avg"] = v["view_count"] / channel_avg_views
+                v["daily_views"] = v["view_count"] / max(v.get("days_since_upload", 1), 1)
+                all_videos.append(v)
             cat_channels += 1
             cat_videos += len(videos)
             cat_subs.append(ch["subscriber_count"])
 
         if cat_channels > 0:
-            shorts = [v for v in all_videos if v["category_id"] == cat_id and v["is_short"]]
-            longs = [v for v in all_videos if v["category_id"] == cat_id and not v["is_short"]]
+            cat_vids = [v for v in all_videos if v["category_id"] == cat_id]
+            shorts = [v for v in cat_vids if v["is_short"]]
+            longs = [v for v in cat_vids if not v["is_short"]]
             cat_stats[cat_id] = {
                 "name": CATEGORIES.get(cat_id, cat_id),
                 "channels": cat_channels,
@@ -177,7 +74,7 @@ def collect_all_categories(category_ids=None):
                 "short_count": len(shorts),
                 "long_count": len(longs),
                 "avg_subscribers": int(sum(cat_subs) / len(cat_subs)),
-                "avg_vps": round(sum(v["vps"] for v in shorts + longs) / max(len(shorts + longs), 1), 4),
+                "avg_vps": round(sum(v["vps"] for v in cat_vids) / max(len(cat_vids), 1), 4),
             }
         total_channels += cat_channels
 
@@ -185,13 +82,6 @@ def collect_all_categories(category_ids=None):
 
 
 # ── 백분위 계산 ───────────────────────────────────────────────────
-
-def sub_tier(s):
-    if s < 50000: return "S"
-    if s < 200000: return "M"
-    if s < 500000: return "L"
-    return "XL"
-
 
 def build_percentile_tables(videos):
     groups = {}
@@ -204,7 +94,7 @@ def build_percentile_tables(videos):
         if len(data) < 20:
             continue
         tables[key] = {"sample_count": len(data)}
-        for metric_name, metric_key in [("vps", "vps"), ("engagement", "engagement_rate"), ("like_rate", "like_rate")]:
+        for metric_name, metric_key in [("vps", "vps"), ("engagement", "engagement_rate"), ("like_rate", "like_rate"), ("vs_channel_avg", "vs_channel_avg"), ("daily_views", "daily_views")]:
             vals = sorted([d[metric_key] for d in data])
             n = len(vals)
             tables[key][metric_name] = [vals[min(int(n * p / 100), n - 1)] for p in range(101)]

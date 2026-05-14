@@ -1,0 +1,17 @@
+{
+  "version": "3.0",
+  "numeric_features": [
+    "vps_raw", "vps_percentile",
+    "engagement_rate_raw", "engagement_percentile",
+    "like_rate_raw", "like_rate_percentile",
+    "vs_channel_avg_raw", "vs_channel_avg_percentile",
+    "daily_views_raw", "daily_views_percentile",
+    "duration_sec", "days_since_upload", "subscriber_count"
+  ],
+  "categorical_features": {
+    "sub_tier": ["S", "M", "L", "XL"],
+    "is_short": [0, 1],
+    "category_id": ["1", "2", "10", "15", "17", "20", "22", "23", "24", "25", "26", "28"]
+  },
+  "total_feature_dim": 31
+}
