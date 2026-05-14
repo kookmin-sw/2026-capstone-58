@@ -7,11 +7,13 @@
 import sys
 import time
 from datetime import datetime
-from collect import (
-    API_KEY, CATEGORIES, DATA_DIR,
-    discover_channels, get_channel, get_video_ids, get_videos,
-    compute_metrics, save_csv,
-)
+
+from dotenv import load_dotenv
+
+from collect import API_KEY, DATA_DIR, compute_metrics, save_csv
+from youtube_api import CATEGORIES, discover_channels, get_channel, get_video_ids, get_videos
+
+load_dotenv()
 
 
 def collect_category(cat_id: str, cat_name: str) -> dict:
@@ -22,7 +24,7 @@ def collect_category(cat_id: str, cat_name: str) -> dict:
 
     # 1) 채널 발견
     print(f"[채널 발견] mostPopular에서 채널 추출 중...")
-    channel_ids = discover_channels(cat_id)
+    channel_ids = discover_channels(API_KEY, cat_id)
     print(f"  ✓ {len(channel_ids)}개 유니크 채널 발견")
 
     # 2) 채널별 영상 수집
@@ -33,14 +35,14 @@ def collect_category(cat_id: str, cat_name: str) -> dict:
     success = 0
     for i, ch_id in enumerate(channel_ids, 1):
         print(f"  [{i}/{len(channel_ids)}] {ch_id}", end=" ")
-        channel = get_channel(ch_id)
+        channel = get_channel(API_KEY, ch_id)
         if not channel:
             print("✗ 조회 실패")
             continue
         print(f"→ {channel['channel_title']} (구독자 {channel['subscriber_count']:,})", end=" ")
 
-        video_ids = get_video_ids(channel["uploads_playlist"])
-        videos = get_videos(video_ids)
+        video_ids = get_video_ids(API_KEY, channel["uploads_playlist"])
+        videos = get_videos(API_KEY, video_ids, include_details=True)
         videos = compute_metrics(channel, videos)
         save_csv(videos, filepath)
 
