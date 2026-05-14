@@ -156,7 +156,20 @@ def save_to_s3(new_tables, cat_stats, total_channels, total_videos, categories):
     s3.put_object(Bucket=S3_BUCKET, Key="latest.json",
                   Body=json.dumps(percentile_data, ensure_ascii=False), ContentType="application/json")
 
-    return {"percentiles": f"percentiles/{today}.json", "summaries": f"summaries/{today}.json", "latest": "latest.json"}
+    # 실행 로그 저장
+    run_timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    run_log = {
+        "executed_at": now,
+        "categories": [{"id": cat_id, "name": CATEGORIES.get(cat_id, cat_id)} for cat_id in categories],
+        "category_count": len(categories),
+        "quota_used": total_channels * 3 + len(categories) * 4,
+        "channels_collected": total_channels,
+        "videos_collected": total_videos,
+    }
+    s3.put_object(Bucket=S3_BUCKET, Key=f"logs/{run_timestamp}.json",
+                  Body=json.dumps(run_log, ensure_ascii=False), ContentType="application/json")
+
+    return {"percentiles": f"percentiles/{today}.json", "summaries": f"summaries/{today}.json", "latest": "latest.json", "log": f"logs/{run_timestamp}.json"}
 
 
 # ── Lambda 핸들러 ─────────────────────────────────────────────────
@@ -182,7 +195,6 @@ def lambda_handler(event, context):
         "channels": total_channels,
         "videos": len(videos),
         "categories": categories,
-        "skipped": skipped,
         "groups": len(tables),
         "s3_files": saved,
     }
