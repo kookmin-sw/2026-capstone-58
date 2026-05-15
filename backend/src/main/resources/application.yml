@@ -1,3 +1,0 @@
-gemini:
-  api:
-    key:  # application-secret.yml에서 주입
